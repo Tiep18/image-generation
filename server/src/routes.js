@@ -35,6 +35,19 @@ export function createRoutes({ store, batchService, outputRoot }) {
     res.json(normalizeBatchInput(req.body));
   });
 
+  router.get('/models/image', async (req, res, next) => {
+    try {
+      const models = await batchService.listImageModels({
+        routerUrl: req.query.routerUrl || defaultSettings.routerUrl,
+        apiKey: req.query.apiKey || '',
+        timeoutMs: defaultSettings.timeoutMs
+      });
+      res.json({ models });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get('/batches', async (req, res, next) => {
     try {
       const ids = await store.listBatches();

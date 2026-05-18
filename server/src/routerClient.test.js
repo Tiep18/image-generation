@@ -2,6 +2,28 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRouterClient } from './routerClient.js';
 
 describe('router client', () => {
+  it('lists image models with optional auth', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ data: [{ id: 'model-a' }, { id: 'model-b' }] }), { status: 200 })
+    );
+    const client = createRouterClient({ fetchImpl });
+
+    const models = await client.listImageModels({
+      routerUrl: 'http://localhost:20128/',
+      apiKey: 'secret',
+      timeoutMs: 300000
+    });
+
+    expect(models).toEqual([{ id: 'model-a' }, { id: 'model-b' }]);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://localhost:20128/v1/models/image',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({ Authorization: 'Bearer secret' })
+      })
+    );
+  });
+
   it('requests binary image generation with optional auth', async () => {
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
     const client = createRouterClient({ fetchImpl });

@@ -28,6 +28,15 @@ describe('App', () => {
         );
       }
 
+      if (String(url).includes('/api/models/image')) {
+        return new Response(
+          JSON.stringify({
+            models: [{ id: 'model-a' }, { id: 'model-b' }]
+          }),
+          { status: 200 }
+        );
+      }
+
       if (String(url).endsWith('/api/batches') && options?.method === 'POST') {
         return new Response(
           JSON.stringify({
@@ -115,5 +124,16 @@ describe('App', () => {
 
     expect(await screen.findByText('Batch batch-1')).toBeTruthy();
     expect(await screen.findByText('home')).toBeTruthy();
+  });
+
+  it('loads image models and selects one', async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /load models/i }));
+
+    expect(await screen.findByRole('option', { name: 'model-a' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'model-b' } });
+
+    expect(screen.getByLabelText('Model').value).toBe('model-b');
   });
 });

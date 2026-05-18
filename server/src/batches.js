@@ -122,6 +122,10 @@ export function createBatchService({ store, routerClient }) {
   }
 
   return {
+    async listImageModels({ routerUrl, apiKey, timeoutMs }) {
+      return routerClient.listImageModels({ routerUrl, apiKey, timeoutMs });
+    },
+
     async createBatch({ settings, items }) {
       const preparedItems = items.map((item) => ({
         ...item,

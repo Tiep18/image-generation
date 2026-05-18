@@ -9,7 +9,8 @@ describe('routes', () => {
   async function createTestApp() {
     const outputRoot = await mkdtemp(path.join(tmpdir(), 'batch-routes-'));
     const routerClient = {
-      generateImage: vi.fn(async () => Buffer.from([1, 2, 3]))
+      generateImage: vi.fn(async () => Buffer.from([1, 2, 3])),
+      listImageModels: vi.fn(async () => [{ id: 'model-a' }, { id: 'model-b' }])
     };
     return {
       app: createApp({ outputRoot, routerClient }),
@@ -27,6 +28,22 @@ describe('routes', () => {
 
     expect(response.body.ok).toBe(true);
     expect(response.body.items[0].safeName).toBe('home');
+  });
+
+  it('lists image models through 9Router client', async () => {
+    const { app, routerClient } = await createTestApp();
+
+    const response = await request(app)
+      .get('/api/models/image')
+      .query({ routerUrl: 'http://localhost:20128', apiKey: 'secret' })
+      .expect(200);
+
+    expect(response.body.models).toEqual([{ id: 'model-a' }, { id: 'model-b' }]);
+    expect(routerClient.listImageModels).toHaveBeenCalledWith({
+      routerUrl: 'http://localhost:20128',
+      apiKey: 'secret',
+      timeoutMs: 300000
+    });
   });
 
   it('creates and reads a generated batch', async () => {

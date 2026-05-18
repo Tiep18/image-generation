@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Pause, Play, RefreshCcw, RotateCcw, X } from 'lucide-react';
-import { createBatch, getBatch, getOutputUrl, getZipUrl, listBatches, postBatchAction } from './api.js';
+import {
+  createBatch,
+  getBatch,
+  getOutputUrl,
+  getZipUrl,
+  listBatches,
+  listImageModels,
+  postBatchAction
+} from './api.js';
 import { parseBatchJson } from './validation.js';
 
 const sampleJson = JSON.stringify(
@@ -39,6 +47,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(null);
+  const [models, setModels] = useState([]);
 
   const parsed = useMemo(() => parseBatchJson(jsonText), [jsonText]);
   const counts = useMemo(() => {
@@ -148,6 +157,25 @@ export function App() {
     await loadBatch(batch.id);
   }
 
+  async function handleLoadModels() {
+    setBusy(true);
+    setMessage('');
+    try {
+      const loadedModels = await listImageModels({
+        routerUrl: settings.routerUrl,
+        apiKey: settings.apiKey
+      });
+      setModels(loadedModels);
+      if (!settings.model && loadedModels[0]?.id) {
+        updateSetting('model', loadedModels[0].id);
+      }
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runAction(path, body) {
     if (!batch?.id) return;
     setBusy(true);
@@ -223,15 +251,34 @@ export function App() {
                 onChange={(event) => updateSetting('apiKey', event.target.value)}
               />
             </label>
-            <label>
-              Model
-              <input
-                aria-label="Model"
-                value={settings.model}
-                onChange={(event) => updateSetting('model', event.target.value)}
-                placeholder="provider/model-id"
-              />
-            </label>
+            <div className="model-row">
+              <label>
+                Model
+                {models.length > 0 ? (
+                  <select
+                    aria-label="Model"
+                    value={settings.model}
+                    onChange={(event) => updateSetting('model', event.target.value)}
+                  >
+                    {models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.id}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    aria-label="Model"
+                    value={settings.model}
+                    onChange={(event) => updateSetting('model', event.target.value)}
+                    placeholder="provider/model-id"
+                  />
+                )}
+              </label>
+              <button type="button" onClick={handleLoadModels} disabled={busy}>
+                Load Models
+              </button>
+            </div>
             <div className="compact-grid">
               <label>
                 Size

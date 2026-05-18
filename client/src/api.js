@@ -27,6 +27,16 @@ export async function listBatches() {
   return data.batches || [];
 }
 
+export async function listImageModels({ routerUrl, apiKey }) {
+  const params = new URLSearchParams({ routerUrl, apiKey });
+  const response = await fetch(`${API_BASE}/api/models/image?${params.toString()}`);
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(data.error || JSON.stringify(data));
+  }
+  return data.models || [];
+}
+
 export async function getBatch(batchId) {
   const response = await fetch(`${API_BASE}/api/batches/${batchId}`);
   const data = await readJson(response);
