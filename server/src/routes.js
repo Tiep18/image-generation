@@ -23,6 +23,8 @@ export function createRoutes({ store, batchService, outputRoot }) {
     return {
       id: batch.id,
       createdAt: batch.createdAt,
+      name: batch.name || '',
+      note: batch.note || '',
       status: batch.status,
       model: batch.settings?.model || '',
       total: batch.items.length,
@@ -87,6 +89,14 @@ export function createRoutes({ store, batchService, outputRoot }) {
   router.delete('/batches/:batchId', async (req, res, next) => {
     try {
       res.json(await batchService.deleteBatch(req.params.batchId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch('/batches/:batchId/metadata', async (req, res, next) => {
+    try {
+      res.json(await batchService.updateBatchMetadata(req.params.batchId, req.body));
     } catch (error) {
       next(error);
     }

@@ -201,6 +201,10 @@ export function createBatchService({ store, routerClient }) {
       return store.deleteBatch(batchId);
     },
 
+    async updateBatchMetadata(batchId, metadata) {
+      return withBatchLock(batchId, () => store.updateBatchMetadata(batchId, metadata));
+    },
+
     async selectVersion(batchId, itemId, versionId) {
       return updateBatch(batchId, async (draft) => {
         const item = draft.items.find((candidate) => candidate.id === itemId);

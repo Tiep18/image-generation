@@ -176,4 +176,39 @@ describe('routes', () => {
     const history = await request(app).get('/api/batches').expect(200);
     expect(history.body.batches).toEqual([]);
   });
+
+  it('updates batch display metadata and includes it in history', async () => {
+    const { app } = await createTestApp();
+
+    const created = await request(app)
+      .post('/api/batches')
+      .send({
+        settings: {
+          routerUrl: 'http://localhost:20128',
+          apiKey: '',
+          model: 'model-a',
+          concurrency: 1,
+          autoRetries: 0,
+          timeoutMs: 300000
+        },
+        items: [{ screen: 'home', prompt: 'Create a home screen' }]
+      })
+      .expect(201);
+
+    const updated = await request(app)
+      .patch(`/api/batches/${created.body.id}/metadata`)
+      .send({ name: 'Launch screens', note: 'First pass for checkout flow' })
+      .expect(200);
+
+    expect(updated.body.name).toBe('Launch screens');
+    expect(updated.body.note).toBe('First pass for checkout flow');
+
+    const history = await request(app).get('/api/batches').expect(200);
+    expect(history.body.batches[0]).toEqual(
+      expect.objectContaining({
+        name: 'Launch screens',
+        note: 'First pass for checkout flow'
+      })
+    );
+  });
 });

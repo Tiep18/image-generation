@@ -54,4 +54,22 @@ describe('batch store', () => {
     expect(listed).toEqual([]);
     await expect(store.getBatch(batch.id)).rejects.toThrow();
   });
+
+  it('updates batch display metadata', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'batch-store-'));
+    const store = createBatchStore(root);
+    const batch = await store.createBatch({
+      settings: { model: 'test-model' },
+      items: [{ id: 'item-1', screen: 'home', safeName: 'home', prompt: 'prompt' }]
+    });
+
+    const updated = await store.updateBatchMetadata(batch.id, {
+      name: 'Launch screens',
+      note: 'First pass for checkout flow'
+    });
+
+    expect(updated.name).toBe('Launch screens');
+    expect(updated.note).toBe('First pass for checkout flow');
+    expect((await store.getBatch(batch.id)).name).toBe('Launch screens');
+  });
 });

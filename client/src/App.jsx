@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Pause, Play, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react';
+import { Download, Pause, Pencil, Play, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react';
 import {
   createBatch,
   deleteBatch,
@@ -8,7 +8,8 @@ import {
   getZipUrl,
   listBatches,
   listImageModels,
-  postBatchAction
+  postBatchAction,
+  updateBatchMetadata
 } from './api.js';
 import { parseBatchJson } from './validation.js';
 
@@ -264,6 +265,25 @@ export function App() {
     }
   }
 
+  async function handleEditBatchDetails() {
+    if (!batch?.id) return;
+    const name = window.prompt('Batch name', batch.name || '');
+    if (name === null) return;
+    const note = window.prompt('Batch note', batch.note || '');
+    if (note === null) return;
+
+    setBusy(true);
+    setMessage('');
+    try {
+      setBatch(await updateBatchMetadata(batch.id, { name, note }));
+      await refreshHistory();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
@@ -425,6 +445,7 @@ export function App() {
                   <small>
                     {entry.model || 'No model'} - {entry.done}/{entry.total} done - {entry.failed} failed
                   </small>
+                  {entry.name ? <strong>{entry.name}</strong> : null}
                 </button>
               ))}
             </div>
@@ -435,12 +456,18 @@ export function App() {
           <section className="batch-area">
             <div className="batch-toolbar">
               <div>
-                <h2>Batch {batch.id}</h2>
+                <h2>{batch.name || `Batch ${batch.id}`}</h2>
+                {batch.name ? <p>Batch {batch.id}</p> : null}
+                {batch.note ? <p>{batch.note}</p> : null}
                 <p>
                   {counts.done}/{counts.total} done, {counts.running} running, {counts.failed} failed
                 </p>
               </div>
               <div className="button-row">
+                <button onClick={handleEditBatchDetails} disabled={busy}>
+                  <Pencil size={16} />
+                  Edit details
+                </button>
                 <button onClick={() => runAction(`/api/batches/${batch.id}/pause`)} disabled={busy}>
                   <Pause size={16} />
                   Pause

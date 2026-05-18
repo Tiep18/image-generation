@@ -36,6 +36,8 @@ export function createBatchStore(outputRoot) {
       const batch = {
         id: createBatchId(),
         createdAt: new Date().toISOString(),
+        name: '',
+        note: '',
         status: 'running',
         settings,
         items: items.map((item) => ({
@@ -68,6 +70,13 @@ export function createBatchStore(outputRoot) {
       }
       await rm(target, { recursive: true, force: true });
       return { ok: true };
+    },
+
+    async updateBatchMetadata(id, metadata) {
+      const batch = await this.getBatch(id);
+      batch.name = typeof metadata.name === 'string' ? metadata.name.trim() : batch.name || '';
+      batch.note = typeof metadata.note === 'string' ? metadata.note.trim() : batch.note || '';
+      return saveBatch(batch);
     },
 
     async listBatches() {

@@ -16,6 +16,8 @@ describe('App', () => {
               {
                 id: 'batch-1',
                 createdAt: '2026-05-18T10:00:00.000Z',
+                name: '',
+                note: '',
                 status: 'done',
                 model: 'model-a',
                 total: 1,
@@ -65,6 +67,30 @@ describe('App', () => {
         return new Response(
           JSON.stringify({
             id: 'batch-1',
+            name: '',
+            note: '',
+            status: 'done',
+            items: [
+              {
+                id: 'item-1',
+                screen: 'home',
+                prompt: 'Create a home screen',
+                status: 'done',
+                selectedVersionId: 'v1',
+                versions: [{ id: 'v1', filename: 'home.png' }]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (String(url).endsWith('/api/batches/batch-1/metadata') && options?.method === 'PATCH') {
+        return new Response(
+          JSON.stringify({
+            id: 'batch-1',
+            name: 'Launch screens',
+            note: 'First pass',
             status: 'done',
             items: [
               {
@@ -189,5 +215,26 @@ describe('App', () => {
       )
     );
     expect(window.localStorage.getItem('lastBatchId')).toBeNull();
+  });
+
+  it('updates the selected batch name and note', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+    vi.spyOn(window, 'prompt')
+      .mockReturnValueOnce('Launch screens')
+      .mockReturnValueOnce('First pass');
+
+    render(<App />);
+
+    expect(await screen.findByText('Batch batch-1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /edit details/i }));
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:3001/api/batches/batch-1/metadata',
+        expect.objectContaining({ method: 'PATCH' })
+      )
+    );
+    expect(await screen.findByText('Launch screens')).toBeTruthy();
+    expect(screen.getByText('First pass')).toBeTruthy();
   });
 });
