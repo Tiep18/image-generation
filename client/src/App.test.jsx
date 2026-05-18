@@ -136,4 +136,36 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Model').value).toBe('model-b');
   });
+
+  it('persists settings changes in local storage', async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'model-a' } });
+
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem('batchImageSettings')).model).toBe('model-a');
+    });
+  });
+
+  it('restores saved settings and applies presets', async () => {
+    window.localStorage.setItem(
+      'batchImageSettings',
+      JSON.stringify({
+        routerUrl: 'http://saved-router',
+        model: 'saved/model',
+        size: '512x512',
+        quality: 'standard',
+        concurrency: 2,
+        autoRetries: 1
+      })
+    );
+
+    render(<App />);
+
+    expect(screen.getByLabelText('Model').value).toBe('saved/model');
+    fireEvent.click(screen.getByRole('button', { name: /quality/i }));
+
+    expect(screen.getByLabelText('Quality').value).toBe('hd');
+    expect(screen.getByLabelText('Auto retries').value).toBe('2');
+  });
 });

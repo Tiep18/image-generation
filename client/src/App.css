@@ -186,6 +186,18 @@ textarea {
   margin-bottom: 0;
 }
 
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.preset-row button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
 .history-strip {
   margin-top: 18px;
   padding: 16px;

@@ -34,13 +34,46 @@ const defaultSettings = {
   negativePrompt: ''
 };
 
+const settingsStorageKey = 'batchImageSettings';
+
+const presets = [
+  {
+    name: 'Fast',
+    settings: { quality: 'standard', concurrency: 5, autoRetries: 1, size: '1024x1024' }
+  },
+  {
+    name: 'Quality',
+    settings: { quality: 'hd', concurrency: 2, autoRetries: 2, size: '1024x1024' }
+  },
+  {
+    name: 'UI Mockup',
+    settings: {
+      quality: 'hd',
+      concurrency: 3,
+      autoRetries: 2,
+      size: '1024x1024',
+      promptPrefix: 'High quality UI screen mockup, clean layout, sharp details',
+      promptSuffix: 'No distorted text, no watermark, no blurry elements'
+    }
+  }
+];
+
+function loadSavedSettings() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(settingsStorageKey));
+    return saved && typeof saved === 'object' ? { ...defaultSettings, ...saved } : defaultSettings;
+  } catch {
+    return defaultSettings;
+  }
+}
+
 function selectedVersion(item) {
   return item.versions?.find((version) => version.id === item.selectedVersionId);
 }
 
 export function App() {
   const [jsonText, setJsonText] = useState(sampleJson);
-  const [settings, setSettings] = useState(defaultSettings);
+  const [settings, setSettings] = useState(loadSavedSettings);
   const [errors, setErrors] = useState([]);
   const [batch, setBatch] = useState(null);
   const [history, setHistory] = useState([]);
@@ -59,6 +92,10 @@ export function App() {
       running: items.filter((item) => ['queued', 'generating', 'regenerating'].includes(item.status)).length
     };
   }, [batch]);
+
+  useEffect(() => {
+    window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+  }, [settings]);
 
   async function loadBatch(batchId) {
     const loaded = await getBatch(batchId);
@@ -124,6 +161,10 @@ export function App() {
       ...current,
       [name]: ['concurrency', 'autoRetries', 'timeoutMs'].includes(name) ? Number(value) : value
     }));
+  }
+
+  function applyPreset(preset) {
+    setSettings((current) => ({ ...current, ...preset.settings }));
   }
 
   async function handleGenerate() {
@@ -239,6 +280,13 @@ export function App() {
             <div className="panel-heading">
               <h2>Settings</h2>
             </div>
+            <div className="preset-row" aria-label="Settings presets">
+              {presets.map((preset) => (
+                <button type="button" key={preset.name} onClick={() => applyPreset(preset)}>
+                  {preset.name}
+                </button>
+              ))}
+            </div>
             <label>
               9Router URL
               <input value={settings.routerUrl} onChange={(event) => updateSetting('routerUrl', event.target.value)} />
@@ -348,7 +396,7 @@ export function App() {
                 >
                   <span>{entry.id}</span>
                   <small>
-                    {entry.model || 'No model'} · {entry.done}/{entry.total} done · {entry.failed} failed
+                    {entry.model || 'No model'} - {entry.done}/{entry.total} done - {entry.failed} failed
                   </small>
                 </button>
               ))}
