@@ -10,6 +10,10 @@ describe('sanitizeScreenName', () => {
     expect(sanitizeScreenName('Màn hình thanh toán')).toBe('man-hinh-thanh-toan');
   });
 
+  it('normalizes Vietnamese d with stroke in filenames', () => {
+    expect(sanitizeScreenName('Đồng hồ đá')).toBe('dong-ho-da');
+  });
+
   it('uses screen fallback when the value has no safe characters', () => {
     expect(sanitizeScreenName('!!!')).toBe('screen');
   });

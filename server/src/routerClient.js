@@ -32,7 +32,7 @@ export function createRouterClient({ fetchImpl = fetch } = {}) {
       return Array.isArray(payload.data) ? payload.data : [];
     },
 
-    async generateImage({ routerUrl, apiKey, model, prompt, size, quality, timeoutMs }) {
+    async generateImage({ routerUrl, apiKey, model, prompt, size, quality, negativePrompt, timeoutMs }) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -48,6 +48,9 @@ export function createRouterClient({ fetchImpl = fetch } = {}) {
         }
         if (quality) {
           body.quality = quality;
+        }
+        if (typeof negativePrompt === 'string' && negativePrompt.trim() !== '') {
+          body.negative_prompt = negativePrompt.trim();
         }
 
         const response = await fetchImpl(

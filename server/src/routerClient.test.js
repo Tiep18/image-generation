@@ -74,6 +74,29 @@ describe('router client', () => {
     expect(options.headers.Authorization).toBeUndefined();
   });
 
+  it('sends negative prompt when provided', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }));
+    const client = createRouterClient({ fetchImpl });
+
+    await client.generateImage({
+      routerUrl: 'http://localhost:20128',
+      apiKey: '',
+      model: 'model-a',
+      prompt: 'prompt',
+      size: '1024x1024',
+      quality: 'standard',
+      negativePrompt: 'no text artifacts',
+      timeoutMs: 300000
+    });
+
+    const [, options] = fetchImpl.mock.calls[0];
+    expect(JSON.parse(options.body)).toEqual(
+      expect.objectContaining({
+        negative_prompt: 'no text artifacts'
+      })
+    );
+  });
+
   it('throws a useful error for failed responses', async () => {
     const fetchImpl = vi.fn(async () => new Response('bad request', { status: 400 }));
     const client = createRouterClient({ fetchImpl });

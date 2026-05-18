@@ -46,7 +46,7 @@ describe('batch service', () => {
 
     const service = createBatchService({ store, routerClient: { generateImage } });
     const batch = await service.createBatch({
-      settings: baseSettings({ concurrency: 2 }),
+      settings: baseSettings({ concurrency: 2, negativePrompt: 'no text artifacts' }),
       items: sampleItems()
     });
 
@@ -57,6 +57,7 @@ describe('batch service', () => {
     expect(saved.status).toBe('done');
     expect(saved.items.every((item) => item.status === 'done')).toBe(true);
     expect(saved.items[0].versions[0].filename).toBe('one.png');
+    expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({ negativePrompt: 'no text artifacts' }));
     await expect(readFile(path.join(root, batch.id, 'one.png'))).resolves.toEqual(Buffer.from([1, 2, 3]));
   });
 
@@ -117,5 +118,53 @@ describe('batch service', () => {
     expect(saved.items[0].prompt).toBe('updated prompt');
     expect(saved.items[0].versions.map((version) => version.filename)).toEqual(['one.png', 'one-v2.png']);
     expect(saved.items[0].selectedVersionId).toBe('v2');
+  });
+
+  it('keeps paused status while queued work remains', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'batch-service-'));
+    const store = createBatchStore(root);
+    let releaseFirst;
+    const firstImage = new Promise((resolve) => {
+      releaseFirst = () => resolve(Buffer.from([1]));
+    });
+    const generateImage = vi.fn().mockReturnValueOnce(firstImage).mockResolvedValue(Buffer.from([2]));
+
+    const service = createBatchService({ store, routerClient: { generateImage } });
+    const batch = await service.createBatch({
+      settings: baseSettings({ concurrency: 1 }),
+      items: sampleItems()
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const paused = await service.pauseBatch(batch.id);
+
+    expect(paused.status).toBe('paused');
+    releaseFirst();
+    await service.cancelBatch(batch.id);
+    await service.waitForIdle(batch.id);
+  });
+
+  it('marks a batch canceled when queued work is canceled', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'batch-service-'));
+    const store = createBatchStore(root);
+    let releaseFirst;
+    const firstImage = new Promise((resolve) => {
+      releaseFirst = () => resolve(Buffer.from([1]));
+    });
+    const generateImage = vi.fn().mockReturnValueOnce(firstImage).mockResolvedValue(Buffer.from([2]));
+
+    const service = createBatchService({ store, routerClient: { generateImage } });
+    const batch = await service.createBatch({
+      settings: baseSettings({ concurrency: 1 }),
+      items: sampleItems()
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const canceled = await service.cancelBatch(batch.id);
+
+    expect(canceled.status).toBe('canceled');
+    expect(canceled.items.filter((item) => item.status === 'canceled')).toHaveLength(2);
+    releaseFirst();
+    await service.waitForIdle(batch.id);
   });
 });

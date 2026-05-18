@@ -63,10 +63,19 @@ const presets = [
 function loadSavedSettings() {
   try {
     const saved = JSON.parse(window.localStorage.getItem(settingsStorageKey));
-    return saved && typeof saved === 'object' ? { ...defaultSettings, ...saved } : defaultSettings;
+    if (!saved || typeof saved !== 'object') {
+      return defaultSettings;
+    }
+    const { apiKey, ...savedWithoutApiKey } = saved;
+    return { ...defaultSettings, ...savedWithoutApiKey };
   } catch {
     return defaultSettings;
   }
+}
+
+function settingsForStorage(settings) {
+  const { apiKey, ...safeSettings } = settings;
+  return safeSettings;
 }
 
 function selectedVersion(item) {
@@ -85,6 +94,16 @@ function latestAttempt(item) {
   return history.length > 0 ? history[history.length - 1] : null;
 }
 
+function matchesItemStatus(item, status) {
+  if (status === 'all') {
+    return true;
+  }
+  if (status === 'running') {
+    return ['queued', 'generating', 'regenerating'].includes(item.status);
+  }
+  return item.status === status;
+}
+
 export function App() {
   const [jsonText, setJsonText] = useState(sampleJson);
   const [settings, setSettings] = useState(loadSavedSettings);
@@ -97,6 +116,11 @@ export function App() {
   const [models, setModels] = useState([]);
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('all');
+  const [itemSearch, setItemSearch] = useState('');
+  const [itemStatus, setItemStatus] = useState('all');
+  const [selectedRetryIds, setSelectedRetryIds] = useState(() => new Set());
+  const [editingRegenerateId, setEditingRegenerateId] = useState('');
+  const [regeneratePrompt, setRegeneratePrompt] = useState('');
 
   const parsed = useMemo(() => parseBatchJson(jsonText), [jsonText]);
   const counts = useMemo(() => {
@@ -116,9 +140,16 @@ export function App() {
       return matchesStatus && (!search || searchable.includes(search));
     });
   }, [history, historySearch, historyStatus]);
+  const filteredItems = useMemo(() => {
+    const search = itemSearch.trim().toLowerCase();
+    return (batch?.items || []).filter((item) => {
+      const searchable = [item.screen, item.prompt].filter(Boolean).join(' ').toLowerCase();
+      return matchesItemStatus(item, itemStatus) && (!search || searchable.includes(search));
+    });
+  }, [batch?.items, itemSearch, itemStatus]);
 
   useEffect(() => {
-    window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+    window.localStorage.setItem(settingsStorageKey, JSON.stringify(settingsForStorage(settings)));
   }, [settings]);
 
   async function loadBatch(batchId) {
@@ -180,6 +211,12 @@ export function App() {
     return () => clearInterval(interval);
   }, [batch?.id, batch?.status]);
 
+  useEffect(() => {
+    setSelectedRetryIds(new Set());
+    setEditingRegenerateId('');
+    setRegeneratePrompt('');
+  }, [batch?.id]);
+
   function updateSetting(name, value) {
     setSettings((current) => ({
       ...current,
@@ -189,6 +226,24 @@ export function App() {
 
   function applyPreset(preset) {
     setSettings((current) => ({ ...current, ...preset.settings }));
+  }
+
+  function handleImportFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const result = parseBatchJson(text);
+      setJsonText(text);
+      setErrors(result.ok ? [] : result.errors);
+    };
+    reader.onerror = () => {
+      setErrors(['Could not read the selected file.']);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
   }
 
   async function handleGenerate() {
@@ -259,6 +314,39 @@ export function App() {
     for (const item of failed) {
       await runAction(`/api/batches/${batch.id}/items/${item.id}/retry`);
     }
+  }
+
+  async function retrySelectedFailed() {
+    const failed = batch?.items?.filter((item) => selectedRetryIds.has(item.id) && item.status === 'failed') || [];
+    for (const item of failed) {
+      await runAction(`/api/batches/${batch.id}/items/${item.id}/retry`);
+    }
+    setSelectedRetryIds(new Set());
+  }
+
+  function toggleRetrySelection(itemId) {
+    setSelectedRetryIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  }
+
+  function startRegenerate(item) {
+    setEditingRegenerateId(item.id);
+    setRegeneratePrompt(item.prompt);
+  }
+
+  async function submitRegenerate(item) {
+    const prompt = regeneratePrompt.trim();
+    if (!prompt) return;
+    await runAction(`/api/batches/${batch.id}/items/${item.id}/regenerate`, { prompt });
+    setEditingRegenerateId('');
+    setRegeneratePrompt('');
   }
 
   async function handleDeleteBatch() {
@@ -342,6 +430,10 @@ export function App() {
               <h2>Input</h2>
               <span>{parsed.ok ? `${parsed.items.length} items` : 'Invalid JSON'}</span>
             </div>
+            <label>
+              Import JSON file
+              <input type="file" accept=".json,application/json" onChange={handleImportFile} />
+            </label>
             <label htmlFor="batch-json">Batch JSON</label>
             <textarea
               id="batch-json"
@@ -456,6 +548,14 @@ export function App() {
                 onChange={(event) => updateSetting('promptSuffix', event.target.value)}
               />
             </label>
+            <label>
+              Negative prompt
+              <textarea
+                className="small-textarea"
+                value={settings.negativePrompt}
+                onChange={(event) => updateSetting('negativePrompt', event.target.value)}
+              />
+            </label>
             <button className="primary-button" disabled={busy} onClick={handleGenerate}>
               <Play size={18} />
               Generate Batch
@@ -546,6 +646,10 @@ export function App() {
                   <RefreshCcw size={16} />
                   Retry failed
                 </button>
+                <button onClick={retrySelectedFailed} disabled={busy || selectedRetryIds.size === 0}>
+                  <RefreshCcw size={16} />
+                  Retry selected
+                </button>
                 <button onClick={() => runAction(`/api/batches/${batch.id}/cancel`)} disabled={busy}>
                   <X size={16} />
                   Cancel
@@ -557,13 +661,52 @@ export function App() {
               </div>
             </div>
 
+            <div className="history-filters">
+              <label>
+                Search items
+                <input
+                  aria-label="Search items"
+                  value={itemSearch}
+                  onChange={(event) => setItemSearch(event.target.value)}
+                  placeholder="Screen or prompt"
+                />
+              </label>
+              <label>
+                Item status
+                <select
+                  aria-label="Item status"
+                  value={itemStatus}
+                  onChange={(event) => setItemStatus(event.target.value)}
+                >
+                  <option value="all">All</option>
+                  <option value="running">running</option>
+                  <option value="done">done</option>
+                  <option value="failed">failed</option>
+                  <option value="canceled">canceled</option>
+                </select>
+              </label>
+            </div>
+
             <div className="item-grid">
-              {batch.items.map((item) => {
+              {filteredItems.map((item) => {
                 const version = selectedVersion(item);
                 return (
                   <article className="item-card" key={item.id}>
                     <div className="item-header">
-                      <h3>{item.screen}</h3>
+                      <div>
+                        <h3>{item.screen}</h3>
+                        {item.status === 'failed' ? (
+                          <label className="retry-select">
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${item.screen} for retry`}
+                              checked={selectedRetryIds.has(item.id)}
+                              onChange={() => toggleRetrySelection(item.id)}
+                            />
+                            Retry select
+                          </label>
+                        ) : null}
+                      </div>
                       <span className={`status status-${item.status}`}>{item.status}</span>
                     </div>
                     <p>{item.prompt}</p>
@@ -618,22 +761,43 @@ export function App() {
                         Retry
                       </button>
                       <button
-                        onClick={() => {
-                          const prompt = window.prompt('Regenerate prompt', item.prompt);
-                          if (prompt) {
-                            runAction(`/api/batches/${batch.id}/items/${item.id}/regenerate`, { prompt });
-                          }
-                        }}
+                        onClick={() => startRegenerate(item)}
                         disabled={busy || item.status !== 'done'}
                       >
                         <RotateCcw size={16} />
                         Regenerate
                       </button>
                     </div>
+                    {editingRegenerateId === item.id ? (
+                      <div className="regenerate-editor">
+                        <label>
+                          Regenerate prompt for {item.screen}
+                          <textarea
+                            className="small-textarea"
+                            value={regeneratePrompt}
+                            onChange={(event) => setRegeneratePrompt(event.target.value)}
+                          />
+                        </label>
+                        <div className="button-row">
+                          <button onClick={() => submitRegenerate(item)} disabled={busy || !regeneratePrompt.trim()}>
+                            Submit regenerate
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingRegenerateId('');
+                              setRegeneratePrompt('');
+                            }}
+                          >
+                            Cancel edit
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
             </div>
+            {filteredItems.length === 0 ? <p className="empty-state">No matching items.</p> : null}
           </section>
         ) : null}
 

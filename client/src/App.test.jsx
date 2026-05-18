@@ -188,12 +188,19 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Model'), {
       target: { value: 'model-a' }
     });
+    fireEvent.change(screen.getByLabelText('Negative prompt'), {
+      target: { value: 'no blurry text' }
+    });
     fireEvent.click(screen.getByRole('button', { name: /generate batch/i }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       'http://127.0.0.1:3001/api/batches',
       expect.objectContaining({ method: 'POST' })
     ));
+    const createCall = global.fetch.mock.calls.find(([url, options]) =>
+      String(url).endsWith('/api/batches') && options?.method === 'POST'
+    );
+    expect(JSON.parse(createCall[1].body).settings.negativePrompt).toBe('no blurry text');
     expect(await screen.findByText('home')).toBeTruthy();
   });
 
@@ -208,6 +215,21 @@ describe('App', () => {
 
     expect(screen.getByText(/Expected property name/i)).toBeTruthy();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('imports JSON from a file into the editor', async () => {
+    render(<App />);
+    const file = new File(['[{"screen":"imported","prompt":"Create imported screen"}]'], 'batch.json', {
+      type: 'application/json'
+    });
+
+    fireEvent.change(screen.getByLabelText('Import JSON file'), {
+      target: { files: [file] }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Batch JSON').value).toContain('"screen":"imported"');
+    });
   });
 
   it('restores the last batch after reload', async () => {
@@ -234,9 +256,11 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'model-a' } });
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'secret-key' } });
 
     await waitFor(() => {
       expect(JSON.parse(window.localStorage.getItem('batchImageSettings')).model).toBe('model-a');
+      expect(JSON.parse(window.localStorage.getItem('batchImageSettings')).apiKey).toBeUndefined();
     });
   });
 
@@ -315,6 +339,60 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('History status'), { target: { value: 'done' } });
 
     expect(screen.getByText('No matching batches.')).toBeTruthy();
+  });
+
+  it('filters batch items by search text and status', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByText('home')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Search items'), { target: { value: 'checkout' } });
+
+    expect(screen.getByText('No matching items.')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Search items'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Item status'), { target: { value: 'failed' } });
+
+    expect(screen.getByText('No matching items.')).toBeTruthy();
+  });
+
+  it('regenerates an item with an inline prompt editor', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByText('Batch batch-1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^regenerate$/i }));
+    fireEvent.change(screen.getByLabelText('Regenerate prompt for home'), {
+      target: { value: 'Updated inline prompt' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /submit regenerate/i }));
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:3001/api/batches/batch-1/items/item-1/regenerate',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ prompt: 'Updated inline prompt' })
+        })
+      )
+    );
+  });
+
+  it('retries selected failed items', async () => {
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /checkout fixes/i }));
+    expect(await screen.findByText('checkout')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Select checkout for retry'));
+    fireEvent.click(screen.getByRole('button', { name: /retry selected/i }));
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:3001/api/batches/batch-2/items/item-1/retry',
+        expect.objectContaining({ method: 'POST' })
+      )
+    );
   });
 
   it('duplicates the selected batch into the input form', async () => {

@@ -18,6 +18,20 @@ describe('routes', () => {
     };
   }
 
+  async function waitForBatchStatus(app, batchId, expectedStatus = 'done') {
+    const deadline = Date.now() + 1000;
+
+    while (Date.now() < deadline) {
+      const response = await request(app).get(`/api/batches/${batchId}`).expect(200);
+      if (response.body.status === expectedStatus) {
+        return response;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    return request(app).get(`/api/batches/${batchId}`).expect(200);
+  }
+
   it('validates batch input', async () => {
     const { app } = await createTestApp();
 
@@ -69,9 +83,7 @@ describe('routes', () => {
       })
       .expect(201);
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    const fetched = await request(app).get(`/api/batches/${created.body.id}`).expect(200);
+    const fetched = await waitForBatchStatus(app, created.body.id);
     expect(fetched.body.items[0].status).toBe('done');
     expect(fetched.body.items[0].versions[0].filename).toBe('home.png');
   });
@@ -112,7 +124,7 @@ describe('routes', () => {
       })
       .expect(201);
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitForBatchStatus(app, second.body.id);
 
     const response = await request(app).get('/api/batches').expect(200);
 
@@ -146,7 +158,7 @@ describe('routes', () => {
       })
       .expect(201);
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitForBatchStatus(app, created.body.id);
 
     const response = await request(app).get(`/api/batches/${created.body.id}/zip`).expect(200);
     expect(response.headers['content-type']).toContain('application/zip');

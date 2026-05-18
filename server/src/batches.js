@@ -17,7 +17,13 @@ function nextVersion(item) {
   };
 }
 
-function summarizeStatus(items) {
+function summarizeStatus(items, currentStatus = '') {
+  if (currentStatus === 'paused' && items.some((item) => item.status === 'queued' || item.status === 'generating' || item.status === 'regenerating')) {
+    return 'paused';
+  }
+  if (currentStatus === 'canceled' && items.some((item) => item.status === 'canceled')) {
+    return 'canceled';
+  }
   if (items.some((item) => item.status === 'queued' || item.status === 'generating' || item.status === 'regenerating')) {
     return 'running';
   }
@@ -26,6 +32,9 @@ function summarizeStatus(items) {
   }
   if (items.every((item) => item.status === 'done')) {
     return 'done';
+  }
+  if (items.some((item) => item.status === 'canceled')) {
+    return 'canceled';
   }
   return 'running';
 }
@@ -58,7 +67,7 @@ export function createBatchService({ store, routerClient }) {
     return withBatchLock(batchId, async () => {
       const batch = await store.getBatch(batchId);
       await updater(batch);
-      batch.status = summarizeStatus(batch.items);
+      batch.status = summarizeStatus(batch.items, batch.status);
       await store.saveBatch(batch);
       return batch;
     });
@@ -91,6 +100,7 @@ export function createBatchService({ store, routerClient }) {
           prompt: item.effectivePrompt,
           size: batch.settings.size,
           quality: batch.settings.quality,
+          negativePrompt: batch.settings.negativePrompt,
           timeoutMs: batch.settings.timeoutMs
         });
 
@@ -106,7 +116,7 @@ export function createBatchService({ store, routerClient }) {
           item.attemptHistory = item.attemptHistory || [];
           item.attemptHistory.push(createAttemptRecord({ attempt, mode, startedAtMs, status: 'done' }));
           item.lastError = '';
-          batch.status = summarizeStatus(batch.items);
+          batch.status = summarizeStatus(batch.items, batch.status);
           await store.saveBatch(batch);
         });
         return;
@@ -127,7 +137,7 @@ export function createBatchService({ store, routerClient }) {
           );
           item.lastError = error.message;
           item.status = attempt >= maxAttempts ? 'failed' : item.status;
-          batch.status = summarizeStatus(batch.items);
+          batch.status = summarizeStatus(batch.items, batch.status);
           await store.saveBatch(batch);
         });
       }
@@ -202,7 +212,9 @@ export function createBatchService({ store, routerClient }) {
     },
 
     async resumeBatch(batchId) {
-      const batch = await store.getBatch(batchId);
+      const batch = await updateBatch(batchId, async (draft) => {
+        draft.status = 'running';
+      });
       ensureQueue(batch).resume();
       return batch;
     },
@@ -215,6 +227,7 @@ export function createBatchService({ store, routerClient }) {
             item.status = 'canceled';
           }
         });
+        draft.status = 'canceled';
       });
     },
 
