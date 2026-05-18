@@ -173,6 +173,52 @@ textarea {
   margin-top: 18px;
 }
 
+.history-strip {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #d8e1e7;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.history-item {
+  align-items: flex-start;
+  min-height: 64px;
+  padding: 10px 12px;
+  flex-direction: column;
+}
+
+.history-item span,
+.history-item small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item small {
+  color: #53636f;
+}
+
+.active-history {
+  border-color: #146c94;
+  background: #eef8fb;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;

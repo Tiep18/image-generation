@@ -18,6 +18,15 @@ export async function createBatch(payload) {
   return data;
 }
 
+export async function listBatches() {
+  const response = await fetch(`${API_BASE}/api/batches`);
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(data.error || JSON.stringify(data));
+  }
+  return data.batches || [];
+}
+
 export async function getBatch(batchId) {
   const response = await fetch(`${API_BASE}/api/batches/${batchId}`);
   const data = await readJson(response);

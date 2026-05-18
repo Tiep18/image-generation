@@ -59,6 +59,58 @@ describe('routes', () => {
     expect(fetched.body.items[0].versions[0].filename).toBe('home.png');
   });
 
+  it('lists batch history summaries newest first', async () => {
+    const { app } = await createTestApp();
+
+    const first = await request(app)
+      .post('/api/batches')
+      .send({
+        settings: {
+          routerUrl: 'http://localhost:20128',
+          apiKey: '',
+          model: 'model-a',
+          concurrency: 1,
+          autoRetries: 0,
+          timeoutMs: 300000
+        },
+        items: [{ screen: 'home', prompt: 'Create a home screen' }]
+      })
+      .expect(201);
+
+    const second = await request(app)
+      .post('/api/batches')
+      .send({
+        settings: {
+          routerUrl: 'http://localhost:20128',
+          apiKey: '',
+          model: 'model-b',
+          concurrency: 1,
+          autoRetries: 0,
+          timeoutMs: 300000
+        },
+        items: [
+          { screen: 'home', prompt: 'Create a home screen' },
+          { screen: 'checkout', prompt: 'Create a checkout screen' }
+        ]
+      })
+      .expect(201);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const response = await request(app).get('/api/batches').expect(200);
+
+    expect(response.body.batches.map((batch) => batch.id)).toEqual([second.body.id, first.body.id]);
+    expect(response.body.batches[0]).toEqual(
+      expect.objectContaining({
+        id: second.body.id,
+        model: 'model-b',
+        total: 2,
+        done: 2,
+        failed: 0
+      })
+    );
+  });
+
   it('downloads a zip for selected versions', async () => {
     const { app } = await createTestApp();
 

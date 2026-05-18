@@ -7,7 +7,27 @@ import { App } from './App.jsx';
 
 describe('App', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     global.fetch = vi.fn(async (url, options) => {
+      if (String(url).endsWith('/api/batches') && !options) {
+        return new Response(
+          JSON.stringify({
+            batches: [
+              {
+                id: 'batch-1',
+                createdAt: '2026-05-18T10:00:00.000Z',
+                status: 'done',
+                model: 'model-a',
+                total: 1,
+                done: 1,
+                failed: 0
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+
       if (String(url).endsWith('/api/batches') && options?.method === 'POST') {
         return new Response(
           JSON.stringify({
@@ -77,6 +97,7 @@ describe('App', () => {
 
   it('reports invalid JSON before generating', () => {
     render(<App />);
+    global.fetch.mockClear();
 
     fireEvent.change(screen.getByLabelText('Batch JSON'), {
       target: { value: '[{]' }
@@ -85,5 +106,14 @@ describe('App', () => {
 
     expect(screen.getByText(/Expected property name/i)).toBeTruthy();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('restores the last batch after reload', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByText('Batch batch-1')).toBeTruthy();
+    expect(await screen.findByText('home')).toBeTruthy();
   });
 });

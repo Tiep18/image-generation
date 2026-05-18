@@ -19,13 +19,27 @@ const defaultSettings = {
 export function createRoutes({ store, batchService, outputRoot }) {
   const router = express.Router();
 
+  function summarizeBatch(batch) {
+    return {
+      id: batch.id,
+      createdAt: batch.createdAt,
+      status: batch.status,
+      model: batch.settings?.model || '',
+      total: batch.items.length,
+      done: batch.items.filter((item) => item.status === 'done').length,
+      failed: batch.items.filter((item) => item.status === 'failed').length
+    };
+  }
+
   router.post('/validate', (req, res) => {
     res.json(normalizeBatchInput(req.body));
   });
 
   router.get('/batches', async (req, res, next) => {
     try {
-      res.json({ batches: await store.listBatches() });
+      const ids = await store.listBatches();
+      const batches = await Promise.all(ids.map((id) => store.getBatch(id).then(summarizeBatch)));
+      res.json({ batches });
     } catch (error) {
       next(error);
     }

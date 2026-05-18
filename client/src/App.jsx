@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Pause, Play, RefreshCcw, RotateCcw, X } from 'lucide-react';
-import { createBatch, getBatch, getOutputUrl, getZipUrl, postBatchAction } from './api.js';
+import { createBatch, getBatch, getOutputUrl, getZipUrl, listBatches, postBatchAction } from './api.js';
 import { parseBatchJson } from './validation.js';
 
 const sampleJson = JSON.stringify(
@@ -35,6 +35,7 @@ export function App() {
   const [settings, setSettings] = useState(defaultSettings);
   const [errors, setErrors] = useState([]);
   const [batch, setBatch] = useState(null);
+  const [history, setHistory] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(null);
@@ -49,6 +50,49 @@ export function App() {
       running: items.filter((item) => ['queued', 'generating', 'regenerating'].includes(item.status)).length
     };
   }, [batch]);
+
+  async function loadBatch(batchId) {
+    const loaded = await getBatch(batchId);
+    setBatch(loaded);
+    window.localStorage.setItem('lastBatchId', loaded.id);
+    return loaded;
+  }
+
+  async function refreshHistory() {
+    const batches = await listBatches();
+    setHistory(batches);
+    return batches;
+  }
+
+  useEffect(() => {
+    let alive = true;
+
+    async function restore() {
+      try {
+        const batches = await listBatches();
+        if (!alive) return;
+        setHistory(batches);
+        const lastBatchId = window.localStorage.getItem('lastBatchId');
+        const batchId = lastBatchId || batches[0]?.id;
+        if (batchId) {
+          const restored = await getBatch(batchId);
+          if (!alive) return;
+          setBatch(restored);
+          window.localStorage.setItem('lastBatchId', restored.id);
+        }
+      } catch (error) {
+        if (alive) {
+          setMessage(error.message);
+        }
+      }
+    }
+
+    restore();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!batch?.id || ['done', 'failed', 'canceled'].includes(batch.status)) {
@@ -88,7 +132,10 @@ export function App() {
     setBusy(true);
     setMessage('');
     try {
-      setBatch(await createBatch({ settings, items: result.items }));
+      const created = await createBatch({ settings, items: result.items });
+      setBatch(created);
+      window.localStorage.setItem('lastBatchId', created.id);
+      await refreshHistory();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -98,7 +145,7 @@ export function App() {
 
   async function refreshBatch() {
     if (!batch?.id) return;
-    setBatch(await getBatch(batch.id));
+    await loadBatch(batch.id);
   }
 
   async function runAction(path, body) {
@@ -238,6 +285,29 @@ export function App() {
             {message ? <p className="message">{message}</p> : null}
           </div>
         </section>
+
+        {history.length > 0 ? (
+          <section className="history-strip" aria-label="Batch history">
+            <div className="history-heading">
+              <h2>History</h2>
+              <button onClick={refreshHistory}>Refresh</button>
+            </div>
+            <div className="history-list">
+              {history.map((entry) => (
+                <button
+                  key={entry.id}
+                  className={batch?.id === entry.id ? 'history-item active-history' : 'history-item'}
+                  onClick={() => loadBatch(entry.id)}
+                >
+                  <span>{entry.id}</span>
+                  <small>
+                    {entry.model || 'No model'} · {entry.done}/{entry.total} done · {entry.failed} failed
+                  </small>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {batch ? (
           <section className="batch-area">
