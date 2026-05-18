@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Pause, Play, RefreshCcw, RotateCcw, X } from 'lucide-react';
+import { Download, Pause, Play, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react';
 import {
   createBatch,
+  deleteBatch,
   getBatch,
   getOutputUrl,
   getZipUrl,
@@ -237,6 +238,32 @@ export function App() {
     }
   }
 
+  async function handleDeleteBatch() {
+    if (!batch?.id) return;
+    const confirmed = window.confirm(`Delete batch ${batch.id}? This removes saved files from outputs.`);
+    if (!confirmed) return;
+
+    setBusy(true);
+    setMessage('');
+    try {
+      const deletedBatchId = batch.id;
+      await deleteBatch(deletedBatchId);
+      if (window.localStorage.getItem('lastBatchId') === deletedBatchId) {
+        window.localStorage.removeItem('lastBatchId');
+      }
+      setBatch(null);
+      const batches = await refreshHistory();
+      const nextBatch = batches.find((entry) => entry.id !== deletedBatchId);
+      if (nextBatch?.id) {
+        await loadBatch(nextBatch.id);
+      }
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
@@ -429,6 +456,10 @@ export function App() {
                 <button onClick={() => runAction(`/api/batches/${batch.id}/cancel`)} disabled={busy}>
                   <X size={16} />
                   Cancel
+                </button>
+                <button onClick={handleDeleteBatch} disabled={busy}>
+                  <Trash2 size={16} />
+                  Delete Batch
                 </button>
               </div>
             </div>

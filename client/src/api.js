@@ -46,6 +46,15 @@ export async function getBatch(batchId) {
   return data;
 }
 
+export async function deleteBatch(batchId) {
+  const response = await fetch(`${API_BASE}/api/batches/${batchId}`, { method: 'DELETE' });
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(data.error || JSON.stringify(data));
+  }
+  return data;
+}
+
 export async function postBatchAction(path, body = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',

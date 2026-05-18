@@ -58,6 +58,10 @@ describe('App', () => {
       }
 
       if (String(url).endsWith('/api/batches/batch-1')) {
+        if (options?.method === 'DELETE') {
+          return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        }
+
         return new Response(
           JSON.stringify({
             id: 'batch-1',
@@ -167,5 +171,23 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Quality').value).toBe('hd');
     expect(screen.getByLabelText('Auto retries').value).toBe('2');
+  });
+
+  it('deletes the selected batch after confirmation', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<App />);
+
+    expect(await screen.findByText('Batch batch-1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /delete batch/i }));
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:3001/api/batches/batch-1',
+        expect.objectContaining({ method: 'DELETE' })
+      )
+    );
+    expect(window.localStorage.getItem('lastBatchId')).toBeNull();
   });
 });

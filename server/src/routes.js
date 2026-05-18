@@ -84,6 +84,14 @@ export function createRoutes({ store, batchService, outputRoot }) {
     }
   });
 
+  router.delete('/batches/:batchId', async (req, res, next) => {
+    try {
+      res.json(await batchService.deleteBatch(req.params.batchId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post('/batches/:batchId/pause', async (req, res, next) => {
     try {
       res.json(await batchService.pauseBatch(req.params.batchId));

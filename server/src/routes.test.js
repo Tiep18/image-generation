@@ -152,4 +152,28 @@ describe('routes', () => {
     expect(response.headers['content-type']).toContain('application/zip');
     expect(response.headers['content-disposition']).toContain(`${created.body.id}.zip`);
   });
+
+  it('deletes a batch and removes it from history', async () => {
+    const { app } = await createTestApp();
+
+    const created = await request(app)
+      .post('/api/batches')
+      .send({
+        settings: {
+          routerUrl: 'http://localhost:20128',
+          apiKey: '',
+          model: 'model-a',
+          concurrency: 1,
+          autoRetries: 0,
+          timeoutMs: 300000
+        },
+        items: [{ screen: 'home', prompt: 'Create a home screen' }]
+      })
+      .expect(201);
+
+    await request(app).delete(`/api/batches/${created.body.id}`).expect(200);
+
+    const history = await request(app).get('/api/batches').expect(200);
+    expect(history.body.batches).toEqual([]);
+  });
 });

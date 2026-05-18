@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 let sequence = 0;
@@ -57,6 +57,17 @@ export function createBatchStore(outputRoot) {
     async getBatch(id) {
       const content = await readFile(path.join(outputRoot, id, 'metadata.json'), 'utf8');
       return JSON.parse(content);
+    },
+
+    async deleteBatch(id) {
+      await ensureRoot();
+      const root = path.resolve(outputRoot);
+      const target = path.resolve(outputRoot, id);
+      if (!target.startsWith(`${root}${path.sep}`)) {
+        throw new Error('Invalid batch id');
+      }
+      await rm(target, { recursive: true, force: true });
+      return { ok: true };
     },
 
     async listBatches() {

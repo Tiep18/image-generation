@@ -192,6 +192,15 @@ export function createBatchService({ store, routerClient }) {
       });
     },
 
+    async deleteBatch(batchId) {
+      const queue = queues.get(batchId);
+      queue?.cancel();
+      await queue?.waitForIdle();
+      batchLocks.delete(batchId);
+      queues.delete(batchId);
+      return store.deleteBatch(batchId);
+    },
+
     async selectVersion(batchId, itemId, versionId) {
       return updateBatch(batchId, async (draft) => {
         const item = draft.items.find((candidate) => candidate.id === itemId);

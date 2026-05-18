@@ -39,4 +39,19 @@ describe('batch store', () => {
     expect(loaded.settings.model).toBe('first');
     expect(listed).toEqual([second.id, first.id]);
   });
+
+  it('deletes a batch directory inside the output root', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'batch-store-'));
+    const store = createBatchStore(root);
+    const batch = await store.createBatch({
+      settings: { model: 'test-model' },
+      items: [{ id: 'item-1', screen: 'home', safeName: 'home', prompt: 'prompt' }]
+    });
+
+    await store.deleteBatch(batch.id);
+    const listed = await store.listBatches();
+
+    expect(listed).toEqual([]);
+    await expect(store.getBatch(batch.id)).rejects.toThrow();
+  });
 });
