@@ -98,7 +98,7 @@ describe('App', () => {
               {
                 id: 'item-1',
                 screen: 'home',
-                prompt: 'Create a home screen',
+                prompt: 'Create a home screen with a very long prompt that should stay visually contained inside a fixed card body instead of stretching the entire grid height and making neighboring cards uneven.',
                 status: 'done',
                 attempts: 2,
                 attemptHistory: [
@@ -119,6 +119,27 @@ describe('App', () => {
                 ],
                 selectedVersionId: 'v1',
                 versions: [{ id: 'v1', filename: 'home.png' }]
+              },
+              {
+                id: 'item-2',
+                screen: 'checkout',
+                prompt: 'Create a checkout screen',
+                status: 'failed',
+                attempts: 1,
+                attemptHistory: [],
+                selectedVersionId: '',
+                versions: [],
+                lastError: 'provider failure'
+              },
+              {
+                id: 'item-3',
+                screen: 'profile',
+                prompt: 'Create a profile screen',
+                status: 'generating',
+                attempts: 0,
+                attemptHistory: [],
+                selectedVersionId: '',
+                versions: []
               }
             ]
           }),
@@ -252,6 +273,29 @@ describe('App', () => {
     expect(screen.getByLabelText('Model').value).toBe('model-b');
   });
 
+  it('shows a loading state while loading image models', async () => {
+    let resolveModels;
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).endsWith('/api/batches')) {
+        return new Response(JSON.stringify({ batches: [] }), { status: 200 });
+      }
+      if (String(url).includes('/api/models/image')) {
+        return new Promise((resolve) => {
+          resolveModels = () =>
+            resolve(new Response(JSON.stringify({ models: [{ id: 'model-a' }] }), { status: 200 }));
+        });
+      }
+      return new Response('{}', { status: 200 });
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /load models/i }));
+
+    expect(await screen.findByText('Loading models...')).toBeTruthy();
+    resolveModels();
+    expect(await screen.findByRole('option', { name: 'model-a' })).toBeTruthy();
+  });
+
   it('persists settings changes in local storage', async () => {
     render(<App />);
 
@@ -347,13 +391,39 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('home')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Search items'), { target: { value: 'checkout' } });
+    fireEvent.change(screen.getByLabelText('Search items'), { target: { value: 'missing screen' } });
 
     expect(screen.getByText('No matching items.')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Search items'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Item status'), { target: { value: 'failed' } });
+    fireEvent.change(screen.getByLabelText('Item status'), { target: { value: 'canceled' } });
 
     expect(screen.getByText('No matching items.')).toBeTruthy();
+  });
+
+  it('shows progress and sorts failed and running items before done items', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByText('33% complete')).toBeTruthy();
+    const cards = await screen.findAllByLabelText(/screen item/i);
+    expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual([
+      'screen item checkout',
+      'screen item profile',
+      'screen item home'
+    ]);
+  });
+
+  it('keeps long prompts in a constrained card body', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    const prompt = await screen.findByText(/very long prompt/i);
+    expect(prompt.className).toContain('prompt-preview');
+    expect(prompt.closest('.prompt-box')).toBeTruthy();
+    expect(prompt.closest('.item-body')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'home' }).className).toContain('item-title');
   });
 
   it('regenerates an item with an inline prompt editor', async () => {
@@ -362,7 +432,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Batch batch-1')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^regenerate$/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^regenerate$/i }).find((button) => !button.disabled));
     fireEvent.change(screen.getByLabelText('Regenerate prompt for home'), {
       target: { value: 'Updated inline prompt' }
     });
@@ -405,7 +475,12 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(JSON.parse(screen.getByLabelText('Batch JSON').value)).toEqual([
-        { screen: 'home', prompt: 'Create a home screen' }
+        {
+          screen: 'home',
+          prompt: 'Create a home screen with a very long prompt that should stay visually contained inside a fixed card body instead of stretching the entire grid height and making neighboring cards uneven.'
+        },
+        { screen: 'checkout', prompt: 'Create a checkout screen' },
+        { screen: 'profile', prompt: 'Create a profile screen' }
       ]);
     });
     expect(screen.getByLabelText('Model').value).toBe('model-a');

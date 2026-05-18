@@ -104,6 +104,14 @@ function matchesItemStatus(item, status) {
   return item.status === status;
 }
 
+function itemSortPriority(status) {
+  if (status === 'failed') return 0;
+  if (['queued', 'generating', 'regenerating'].includes(status)) return 1;
+  if (status === 'done') return 2;
+  if (status === 'canceled') return 3;
+  return 4;
+}
+
 export function App() {
   const [jsonText, setJsonText] = useState(sampleJson);
   const [settings, setSettings] = useState(loadSavedSettings);
@@ -111,6 +119,7 @@ export function App() {
   const [batch, setBatch] = useState(null);
   const [history, setHistory] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [operationLabel, setOperationLabel] = useState('');
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(null);
   const [models, setModels] = useState([]);
@@ -132,6 +141,7 @@ export function App() {
       running: items.filter((item) => ['queued', 'generating', 'regenerating'].includes(item.status)).length
     };
   }, [batch]);
+  const progressPercent = counts.total > 0 ? Math.round((counts.done / counts.total) * 100) : 0;
   const filteredHistory = useMemo(() => {
     const search = historySearch.trim().toLowerCase();
     return history.filter((entry) => {
@@ -142,10 +152,12 @@ export function App() {
   }, [history, historySearch, historyStatus]);
   const filteredItems = useMemo(() => {
     const search = itemSearch.trim().toLowerCase();
-    return (batch?.items || []).filter((item) => {
-      const searchable = [item.screen, item.prompt].filter(Boolean).join(' ').toLowerCase();
-      return matchesItemStatus(item, itemStatus) && (!search || searchable.includes(search));
-    });
+    return (batch?.items || [])
+      .filter((item) => {
+        const searchable = [item.screen, item.prompt].filter(Boolean).join(' ').toLowerCase();
+        return matchesItemStatus(item, itemStatus) && (!search || searchable.includes(search));
+      })
+      .sort((left, right) => itemSortPriority(left.status) - itemSortPriority(right.status));
   }, [batch?.items, itemSearch, itemStatus]);
 
   useEffect(() => {
@@ -259,6 +271,7 @@ export function App() {
 
     setErrors([]);
     setBusy(true);
+    setOperationLabel('Generating batch...');
     setMessage('');
     try {
       const created = await createBatch({ settings, items: result.items });
@@ -269,6 +282,7 @@ export function App() {
       setMessage(error.message);
     } finally {
       setBusy(false);
+      setOperationLabel('');
     }
   }
 
@@ -279,6 +293,7 @@ export function App() {
 
   async function handleLoadModels() {
     setBusy(true);
+    setOperationLabel('Loading models...');
     setMessage('');
     try {
       const loadedModels = await listImageModels({
@@ -293,12 +308,14 @@ export function App() {
       setMessage(error.message);
     } finally {
       setBusy(false);
+      setOperationLabel('');
     }
   }
 
   async function runAction(path, body) {
     if (!batch?.id) return;
     setBusy(true);
+    setOperationLabel('Updating batch...');
     try {
       setBatch(await postBatchAction(path, body));
       await refreshBatch();
@@ -306,6 +323,7 @@ export function App() {
       setMessage(error.message);
     } finally {
       setBusy(false);
+      setOperationLabel('');
     }
   }
 
@@ -355,6 +373,7 @@ export function App() {
     if (!confirmed) return;
 
     setBusy(true);
+    setOperationLabel('Deleting batch...');
     setMessage('');
     try {
       const deletedBatchId = batch.id;
@@ -372,6 +391,7 @@ export function App() {
       setMessage(error.message);
     } finally {
       setBusy(false);
+      setOperationLabel('');
     }
   }
 
@@ -383,6 +403,7 @@ export function App() {
     if (note === null) return;
 
     setBusy(true);
+    setOperationLabel('Saving batch details...');
     setMessage('');
     try {
       setBatch(await updateBatchMetadata(batch.id, { name, note }));
@@ -391,6 +412,7 @@ export function App() {
       setMessage(error.message);
     } finally {
       setBusy(false);
+      setOperationLabel('');
     }
   }
 
@@ -423,6 +445,7 @@ export function App() {
             </a>
           ) : null}
         </header>
+        {operationLabel ? <div className="busy-bar" role="status">{operationLabel}</div> : null}
 
         <section className="setup-grid">
           <div className="panel editor-panel">
@@ -624,6 +647,12 @@ export function App() {
                 <p>
                   {counts.done}/{counts.total} done, {counts.running} running, {counts.failed} failed
                 </p>
+                <div className="progress-summary" aria-label="Batch progress">
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span>{progressPercent}% complete</span>
+                </div>
               </div>
               <div className="button-row">
                 <button onClick={handleEditBatchDetails} disabled={busy}>
@@ -691,10 +720,10 @@ export function App() {
               {filteredItems.map((item) => {
                 const version = selectedVersion(item);
                 return (
-                  <article className="item-card" key={item.id}>
+                  <article className="item-card" key={item.id} aria-label={`screen item ${item.screen}`}>
                     <div className="item-header">
-                      <div>
-                        <h3>{item.screen}</h3>
+                      <div className="item-title-block">
+                        <h3 className="item-title">{item.screen}</h3>
                         {item.status === 'failed' ? (
                           <label className="retry-select">
                             <input
@@ -709,32 +738,38 @@ export function App() {
                       </div>
                       <span className={`status status-${item.status}`}>{item.status}</span>
                     </div>
-                    <p>{item.prompt}</p>
-                    <div className="attempt-summary">
-                      <span>Attempts: {item.attempts || 0}</span>
-                      {latestAttempt(item) ? (
-                        <>
-                          <span>Last duration: {formatDuration(latestAttempt(item).durationMs)}</span>
-                          <span>Last result: {latestAttempt(item).status}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    <div className="thumb">
-                      {version ? (
-                        <button
-                          className="thumb-button"
-                          onClick={() =>
-                            setPreview({
-                              title: `${item.screen} / ${version.id}`,
-                              src: getOutputUrl(batch.id, version.filename)
-                            })
-                          }
-                        >
-                          <img src={getOutputUrl(batch.id, version.filename)} alt={`${item.screen} preview`} />
-                        </button>
-                      ) : (
-                        <span>{item.status}</span>
-                      )}
+                    <div className="item-body">
+                      <div className="prompt-box">
+                        <p className="prompt-preview">{item.prompt}</p>
+                      </div>
+                      <div className="attempt-summary">
+                        <span>Attempts: {item.attempts || 0}</span>
+                        {latestAttempt(item) ? (
+                          <>
+                            <span>Last duration: {formatDuration(latestAttempt(item).durationMs)}</span>
+                            <span>Last result: {latestAttempt(item).status}</span>
+                          </>
+                        ) : null}
+                      </div>
+                      <div className="thumb">
+                        {version ? (
+                          <button
+                            className="thumb-button"
+                            onClick={() =>
+                              setPreview({
+                                title: `${item.screen} / ${version.id}`,
+                                src: getOutputUrl(batch.id, version.filename)
+                              })
+                            }
+                          >
+                            <img src={getOutputUrl(batch.id, version.filename)} alt={`${item.screen} preview`} />
+                          </button>
+                        ) : (
+                          <span className={['queued', 'generating', 'regenerating'].includes(item.status) ? 'thumb-loading' : ''}>
+                            {['queued', 'generating', 'regenerating'].includes(item.status) ? 'Generating...' : item.status}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {item.lastError ? <p className="item-error">{item.lastError}</p> : null}
                     <div className="version-row">

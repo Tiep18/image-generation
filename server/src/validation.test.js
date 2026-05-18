@@ -27,7 +27,22 @@ describe('normalizeBatchInput', () => {
     ]);
 
     expect(result.ok).toBe(true);
-    expect(result.items.map((item) => item.safeName)).toEqual(['home', 'home-2']);
+    expect(result.items.map((item) => item.safeName)).toEqual(['001-home', '002-home']);
+  });
+
+  it('prefixes filenames with the screen order from the input array', () => {
+    const result = normalizeBatchInput([
+      { screen: 'Home Screen', prompt: 'Create a home screen' },
+      { screen: 'Checkout', prompt: 'Create a checkout screen' },
+      { screen: 'Product Detail', prompt: 'Create a product detail screen' }
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(result.items.map((item) => item.safeName)).toEqual([
+      '001-home-screen',
+      '002-checkout',
+      '003-product-detail'
+    ]);
   });
 
   it('reports item-level validation errors', () => {

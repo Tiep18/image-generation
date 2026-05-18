@@ -41,7 +41,7 @@ describe('routes', () => {
       .expect(200);
 
     expect(response.body.ok).toBe(true);
-    expect(response.body.items[0].safeName).toBe('home');
+    expect(response.body.items[0].safeName).toBe('001-home');
   });
 
   it('lists image models through 9Router client', async () => {
@@ -85,7 +85,7 @@ describe('routes', () => {
 
     const fetched = await waitForBatchStatus(app, created.body.id);
     expect(fetched.body.items[0].status).toBe('done');
-    expect(fetched.body.items[0].versions[0].filename).toBe('home.png');
+    expect(fetched.body.items[0].versions[0].filename).toBe('001-home.png');
   });
 
   it('lists batch history summaries newest first', async () => {
