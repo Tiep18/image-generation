@@ -81,6 +81,19 @@ describe('App', () => {
             name: '',
             note: '',
             status: 'done',
+            settings: {
+              routerUrl: 'http://router-from-batch',
+              apiKey: '',
+              model: 'model-a',
+              size: '512x512',
+              quality: 'hd',
+              concurrency: 4,
+              autoRetries: 1,
+              timeoutMs: 300000,
+              promptPrefix: 'prefix from batch',
+              promptSuffix: 'suffix from batch',
+              negativePrompt: ''
+            },
             items: [
               {
                 id: 'item-1',
@@ -285,5 +298,24 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('History status'), { target: { value: 'done' } });
 
     expect(screen.getByText('No matching batches.')).toBeTruthy();
+  });
+
+  it('duplicates the selected batch into the input form', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByText('Batch batch-1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /duplicate/i }));
+
+    await waitFor(() => {
+      expect(JSON.parse(screen.getByLabelText('Batch JSON').value)).toEqual([
+        { screen: 'home', prompt: 'Create a home screen' }
+      ]);
+    });
+    expect(screen.getByLabelText('Model').value).toBe('model-a');
+    expect(screen.getByLabelText('Size').value).toBe('512x512');
+    expect(screen.getByLabelText('Quality').value).toBe('hd');
+    expect(screen.getByText('Batch copied to input. Review settings, then generate.')).toBeTruthy();
   });
 });

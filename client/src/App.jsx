@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Pause, Pencil, Play, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react';
+import { Copy, Download, Pause, Pencil, Play, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react';
 import {
   createBatch,
   deleteBatch,
@@ -294,6 +294,20 @@ export function App() {
     }
   }
 
+  function handleDuplicateBatch() {
+    if (!batch?.items) return;
+    const duplicatedItems = batch.items.map((item) => ({
+      screen: item.screen,
+      prompt: item.prompt
+    }));
+    setJsonText(JSON.stringify(duplicatedItems, null, 2));
+    if (batch.settings) {
+      setSettings((current) => ({ ...current, ...batch.settings }));
+    }
+    setErrors([]);
+    setMessage('Batch copied to input. Review settings, then generate.');
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
@@ -503,6 +517,10 @@ export function App() {
                 <button onClick={handleEditBatchDetails} disabled={busy}>
                   <Pencil size={16} />
                   Edit details
+                </button>
+                <button onClick={handleDuplicateBatch} disabled={busy}>
+                  <Copy size={16} />
+                  Duplicate
                 </button>
                 <button onClick={() => runAction(`/api/batches/${batch.id}/pause`)} disabled={busy}>
                   <Pause size={16} />
