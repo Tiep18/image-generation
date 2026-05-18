@@ -84,6 +84,15 @@ describe('batch service', () => {
     expect(saved.items[0].status).toBe('done');
     expect(saved.items[0].attempts).toBe(2);
     expect(saved.items[0].lastError).toBe('');
+    expect(saved.items[0].attemptHistory).toHaveLength(2);
+    expect(saved.items[0].attemptHistory[0]).toEqual(
+      expect.objectContaining({
+        status: 'failed',
+        error: 'temporary provider failure'
+      })
+    );
+    expect(saved.items[0].attemptHistory[1]).toEqual(expect.objectContaining({ status: 'done' }));
+    expect(saved.items[0].attemptHistory[1].durationMs).toBeGreaterThanOrEqual(0);
   });
 
   it('regenerates a done item as a new selected version', async () => {

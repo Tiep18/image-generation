@@ -277,6 +277,15 @@ textarea {
   padding: 14px;
 }
 
+.attempt-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: #53636f;
+  font-size: 12px;
+}
+
 .item-header,
 .version-row {
   display: flex;

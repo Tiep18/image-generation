@@ -100,6 +100,23 @@ describe('App', () => {
                 screen: 'home',
                 prompt: 'Create a home screen',
                 status: 'done',
+                attempts: 2,
+                attemptHistory: [
+                  {
+                    attempt: 1,
+                    mode: 'generate',
+                    status: 'failed',
+                    durationMs: 1250,
+                    error: 'temporary provider failure'
+                  },
+                  {
+                    attempt: 2,
+                    mode: 'generate',
+                    status: 'done',
+                    durationMs: 61000,
+                    error: ''
+                  }
+                ],
                 selectedVersionId: 'v1',
                 versions: [{ id: 'v1', filename: 'home.png' }]
               }
@@ -317,5 +334,15 @@ describe('App', () => {
     expect(screen.getByLabelText('Size').value).toBe('512x512');
     expect(screen.getByLabelText('Quality').value).toBe('hd');
     expect(screen.getByText('Batch copied to input. Review settings, then generate.')).toBeTruthy();
+  });
+
+  it('shows attempt history and latest duration for generated items', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByText('Attempts: 2')).toBeTruthy();
+    expect(screen.getByText('Last duration: 1m 1s')).toBeTruthy();
+    expect(screen.getByText('Last result: done')).toBeTruthy();
   });
 });

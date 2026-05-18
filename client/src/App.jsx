@@ -73,6 +73,18 @@ function selectedVersion(item) {
   return item.versions?.find((version) => version.id === item.selectedVersionId);
 }
 
+function formatDuration(durationMs) {
+  const totalSeconds = Math.round(Number(durationMs || 0) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+function latestAttempt(item) {
+  const history = item.attemptHistory || [];
+  return history.length > 0 ? history[history.length - 1] : null;
+}
+
 export function App() {
   const [jsonText, setJsonText] = useState(sampleJson);
   const [settings, setSettings] = useState(loadSavedSettings);
@@ -555,6 +567,15 @@ export function App() {
                       <span className={`status status-${item.status}`}>{item.status}</span>
                     </div>
                     <p>{item.prompt}</p>
+                    <div className="attempt-summary">
+                      <span>Attempts: {item.attempts || 0}</span>
+                      {latestAttempt(item) ? (
+                        <>
+                          <span>Last duration: {formatDuration(latestAttempt(item).durationMs)}</span>
+                          <span>Last result: {latestAttempt(item).status}</span>
+                        </>
+                      ) : null}
+                    </div>
                     <div className="thumb">
                       {version ? (
                         <button

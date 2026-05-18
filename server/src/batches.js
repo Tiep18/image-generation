@@ -30,6 +30,19 @@ function summarizeStatus(items) {
   return 'running';
 }
 
+function createAttemptRecord({ attempt, mode, startedAtMs, status, error = '' }) {
+  const finishedAtMs = Date.now();
+  return {
+    attempt,
+    mode,
+    status,
+    startedAt: new Date(startedAtMs).toISOString(),
+    finishedAt: new Date(finishedAtMs).toISOString(),
+    durationMs: Math.max(0, finishedAtMs - startedAtMs),
+    error
+  };
+}
+
 export function createBatchService({ store, routerClient }) {
   const queues = new Map();
   const batchLocks = new Map();
@@ -69,6 +82,7 @@ export function createBatchService({ store, routerClient }) {
 
     const maxAttempts = Number(batch.settings.autoRetries || 0) + 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const startedAtMs = Date.now();
       try {
         const image = await routerClient.generateImage({
           routerUrl: batch.settings.routerUrl,
@@ -89,6 +103,8 @@ export function createBatchService({ store, routerClient }) {
           item.selectedVersionId = version.id;
           item.status = 'done';
           item.attempts += 1;
+          item.attemptHistory = item.attemptHistory || [];
+          item.attemptHistory.push(createAttemptRecord({ attempt, mode, startedAtMs, status: 'done' }));
           item.lastError = '';
           batch.status = summarizeStatus(batch.items);
           await store.saveBatch(batch);
@@ -99,6 +115,16 @@ export function createBatchService({ store, routerClient }) {
           batch = await store.getBatch(batchId);
           item = batch.items.find((candidate) => candidate.id === itemId);
           item.attempts += 1;
+          item.attemptHistory = item.attemptHistory || [];
+          item.attemptHistory.push(
+            createAttemptRecord({
+              attempt,
+              mode,
+              startedAtMs,
+              status: 'failed',
+              error: error.message
+            })
+          );
           item.lastError = error.message;
           item.status = attempt >= maxAttempts ? 'failed' : item.status;
           batch.status = summarizeStatus(batch.items);

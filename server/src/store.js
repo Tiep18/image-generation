@@ -45,6 +45,7 @@ export function createBatchStore(outputRoot) {
           effectivePrompt: item.prompt,
           status: 'queued',
           attempts: 0,
+          attemptHistory: [],
           lastError: '',
           selectedVersionId: '',
           versions: []
