@@ -16,13 +16,24 @@ describe('App', () => {
               {
                 id: 'batch-1',
                 createdAt: '2026-05-18T10:00:00.000Z',
-                name: '',
-                note: '',
+                name: 'Launch screens',
+                note: 'First pass',
                 status: 'done',
                 model: 'model-a',
                 total: 1,
                 done: 1,
                 failed: 0
+              },
+              {
+                id: 'batch-2',
+                createdAt: '2026-05-18T10:05:00.000Z',
+                name: 'Checkout fixes',
+                note: 'Needs retry',
+                status: 'failed',
+                model: 'model-b',
+                total: 2,
+                done: 1,
+                failed: 1
               }
             ]
           }),
@@ -78,6 +89,28 @@ describe('App', () => {
                 status: 'done',
                 selectedVersionId: 'v1',
                 versions: [{ id: 'v1', filename: 'home.png' }]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (String(url).endsWith('/api/batches/batch-2')) {
+        return new Response(
+          JSON.stringify({
+            id: 'batch-2',
+            name: 'Checkout fixes',
+            note: 'Needs retry',
+            status: 'failed',
+            items: [
+              {
+                id: 'item-1',
+                screen: 'checkout',
+                prompt: 'Create a checkout screen',
+                status: 'failed',
+                selectedVersionId: '',
+                versions: []
               }
             ]
           }),
@@ -214,7 +247,7 @@ describe('App', () => {
         expect.objectContaining({ method: 'DELETE' })
       )
     );
-    expect(window.localStorage.getItem('lastBatchId')).toBeNull();
+    expect(window.localStorage.getItem('lastBatchId')).toBe('batch-2');
   });
 
   it('updates the selected batch name and note', async () => {
@@ -234,7 +267,23 @@ describe('App', () => {
         expect.objectContaining({ method: 'PATCH' })
       )
     );
-    expect(await screen.findByText('Launch screens')).toBeTruthy();
+    expect((await screen.findAllByText('Launch screens')).length).toBeGreaterThan(0);
     expect(screen.getByText('First pass')).toBeTruthy();
+  });
+
+  it('filters history by search text and status', async () => {
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: /launch screens/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /checkout fixes/i })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Search history'), { target: { value: 'checkout' } });
+
+    expect(screen.queryByRole('button', { name: /launch screens/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /checkout fixes/i })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('History status'), { target: { value: 'done' } });
+
+    expect(screen.getByText('No matching batches.')).toBeTruthy();
   });
 });

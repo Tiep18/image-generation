@@ -83,6 +83,8 @@ export function App() {
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(null);
   const [models, setModels] = useState([]);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyStatus, setHistoryStatus] = useState('all');
 
   const parsed = useMemo(() => parseBatchJson(jsonText), [jsonText]);
   const counts = useMemo(() => {
@@ -94,6 +96,14 @@ export function App() {
       running: items.filter((item) => ['queued', 'generating', 'regenerating'].includes(item.status)).length
     };
   }, [batch]);
+  const filteredHistory = useMemo(() => {
+    const search = historySearch.trim().toLowerCase();
+    return history.filter((entry) => {
+      const matchesStatus = historyStatus === 'all' || entry.status === historyStatus;
+      const searchable = [entry.name, entry.id, entry.model, entry.note].filter(Boolean).join(' ').toLowerCase();
+      return matchesStatus && (!search || searchable.includes(search));
+    });
+  }, [history, historySearch, historyStatus]);
 
   useEffect(() => {
     window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
@@ -434,8 +444,33 @@ export function App() {
               <h2>History</h2>
               <button onClick={refreshHistory}>Refresh</button>
             </div>
+            <div className="history-filters">
+              <label>
+                Search history
+                <input
+                  aria-label="Search history"
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.target.value)}
+                  placeholder="Name, ID, model, note"
+                />
+              </label>
+              <label>
+                History status
+                <select
+                  aria-label="History status"
+                  value={historyStatus}
+                  onChange={(event) => setHistoryStatus(event.target.value)}
+                >
+                  <option value="all">All</option>
+                  <option value="running">running</option>
+                  <option value="done">done</option>
+                  <option value="failed">failed</option>
+                  <option value="canceled">canceled</option>
+                </select>
+              </label>
+            </div>
             <div className="history-list">
-              {history.map((entry) => (
+              {filteredHistory.map((entry) => (
                 <button
                   key={entry.id}
                   className={batch?.id === entry.id ? 'history-item active-history' : 'history-item'}
@@ -449,6 +484,7 @@ export function App() {
                 </button>
               ))}
             </div>
+            {filteredHistory.length === 0 ? <p className="empty-state">No matching batches.</p> : null}
           </section>
         ) : null}
 

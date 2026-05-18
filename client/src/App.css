@@ -214,6 +214,17 @@ textarea {
   margin-bottom: 12px;
 }
 
+.history-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.history-filters label {
+  margin-bottom: 0;
+}
+
 .history-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -242,6 +253,12 @@ textarea {
 .active-history {
   border-color: #146c94;
   background: #eef8fb;
+}
+
+.empty-state {
+  margin-top: 12px;
+  color: #53636f;
+  font-size: 13px;
 }
 
 .button-row {
@@ -373,7 +390,8 @@ textarea {
   }
 
   .setup-grid,
-  .compact-grid {
+  .compact-grid,
+  .history-filters {
     grid-template-columns: 1fr;
   }
 
