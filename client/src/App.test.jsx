@@ -191,6 +191,30 @@ describe('App', () => {
         );
       }
 
+      if (String(url).endsWith('/api/batches/batch-1/items/item-1/review-version') && options?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            id: 'batch-1',
+            name: '',
+            note: '',
+            status: 'done',
+            items: [
+              {
+                id: 'item-1',
+                screen: 'home',
+                prompt: 'Create a home screen with a very long prompt that should stay visually contained inside a fixed card body instead of stretching the entire grid height and making neighboring cards uneven.',
+                status: 'done',
+                attempts: 2,
+                attemptHistory: [],
+                selectedVersionId: 'v1',
+                versions: [{ id: 'v1', filename: 'home.png', reviewStatus: 'approved' }]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+
       return new Response('{}', { status: 200 });
     });
   });
@@ -525,5 +549,38 @@ describe('App', () => {
     fireEvent.click(thumbnail);
 
     expect(thumbnail.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('approves the selected image version from the review panel', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /home preview/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^approve$/i }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:3001/api/batches/batch-1/items/item-1/review-version',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ versionId: 'v1', reviewStatus: 'approved' })
+      })
+    ));
+    await waitFor(() => expect(screen.getAllByText('Approved')).toHaveLength(2));
+  });
+
+  it('filters items by selected version review status', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: /home preview/i })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Review status'), {
+      target: { value: 'approved' }
+    });
+
+    expect(screen.queryByRole('button', { name: /home preview/i })).toBeNull();
+    expect(screen.getByText('No matching items.')).toBeTruthy();
   });
 });

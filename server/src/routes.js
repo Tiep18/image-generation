@@ -156,6 +156,21 @@ export function createRoutes({ store, batchService, outputRoot }) {
     }
   });
 
+  router.post('/batches/:batchId/items/:itemId/review-version', async (req, res, next) => {
+    try {
+      res.json(
+        await batchService.reviewVersion(
+          req.params.batchId,
+          req.params.itemId,
+          req.body.versionId,
+          req.body.reviewStatus
+        )
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get('/batches/:batchId/zip', async (req, res, next) => {
     try {
       const batch = await store.getBatch(req.params.batchId);

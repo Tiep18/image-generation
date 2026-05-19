@@ -165,6 +165,34 @@ describe('routes', () => {
     expect(response.headers['content-disposition']).toContain(`${created.body.id}.zip`);
   });
 
+  it('updates image version review status', async () => {
+    const { app } = await createTestApp();
+
+    const created = await request(app)
+      .post('/api/batches')
+      .send({
+        settings: {
+          routerUrl: 'http://localhost:20128',
+          apiKey: '',
+          model: 'model-a',
+          concurrency: 1,
+          autoRetries: 0,
+          timeoutMs: 300000
+        },
+        items: [{ screen: 'home', prompt: 'Create a home screen' }]
+      })
+      .expect(201);
+
+    await waitForBatchStatus(app, created.body.id);
+
+    const updated = await request(app)
+      .post(`/api/batches/${created.body.id}/items/item-1/review-version`)
+      .send({ versionId: 'v1', reviewStatus: 'approved' })
+      .expect(200);
+
+    expect(updated.body.items[0].versions[0].reviewStatus).toBe('approved');
+  });
+
   it('deletes a batch and removes it from history', async () => {
     const { app } = await createTestApp();
 

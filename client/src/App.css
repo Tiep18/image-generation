@@ -445,6 +445,34 @@ textarea {
   color: #765100;
 }
 
+.review-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #e7edf2;
+  color: #53636f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.review-approved {
+  background: #dff4e4;
+  color: #0d6b2f;
+}
+
+.review-rejected {
+  background: #ffe0dc;
+  color: #9d1f13;
+}
+
+.review-pending {
+  background: #fff1cc;
+  color: #765100;
+}
+
 .thumb {
   display: grid;
   place-items: center;
@@ -596,6 +624,10 @@ textarea {
 
 .review-versions {
   margin-bottom: 0;
+}
+
+.review-actions button {
+  min-height: 34px;
 }
 
 @media (max-width: 900px) {

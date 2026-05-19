@@ -13,7 +13,8 @@ function nextVersion(item) {
   return {
     id: `v${number}`,
     filename: number === 1 ? `${item.safeName}.png` : `${item.safeName}-v${number}.png`,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    reviewStatus: 'pending'
   };
 }
 
@@ -251,6 +252,20 @@ export function createBatchService({ store, routerClient }) {
           throw new Error(`Version ${versionId} does not exist for ${itemId}`);
         }
         item.selectedVersionId = versionId;
+      });
+    },
+
+    async reviewVersion(batchId, itemId, versionId, reviewStatus) {
+      return updateBatch(batchId, async (draft) => {
+        if (!['pending', 'approved', 'rejected'].includes(reviewStatus)) {
+          throw new Error(`Invalid review status: ${reviewStatus}`);
+        }
+        const item = draft.items.find((candidate) => candidate.id === itemId);
+        const version = item?.versions.find((candidate) => candidate.id === versionId);
+        if (!version) {
+          throw new Error(`Version ${versionId} does not exist for ${itemId}`);
+        }
+        version.reviewStatus = reviewStatus;
       });
     }
   };

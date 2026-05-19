@@ -114,12 +114,27 @@ function matchesItemStatus(item, status) {
   return item.status === status;
 }
 
+function matchesReviewStatus(item, status) {
+  if (status === 'all') {
+    return true;
+  }
+  const version = selectedVersion(item);
+  const reviewStatus = version?.reviewStatus || 'pending';
+  return reviewStatus === status;
+}
+
 function itemSortPriority(status) {
   if (status === 'failed') return 0;
   if (['queued', 'generating', 'regenerating'].includes(status)) return 1;
   if (status === 'done') return 2;
   if (status === 'canceled') return 3;
   return 4;
+}
+
+function reviewLabel(reviewStatus) {
+  if (reviewStatus === 'approved') return 'Approved';
+  if (reviewStatus === 'rejected') return 'Rejected';
+  return 'Pending review';
 }
 
 export function App() {
@@ -137,6 +152,7 @@ export function App() {
   const [historyStatus, setHistoryStatus] = useState('all');
   const [itemSearch, setItemSearch] = useState('');
   const [itemStatus, setItemStatus] = useState('all');
+  const [reviewStatus, setReviewStatus] = useState('all');
   const [selectedRetryIds, setSelectedRetryIds] = useState(() => new Set());
   const [editingRegenerateId, setEditingRegenerateId] = useState('');
   const [regeneratePrompt, setRegeneratePrompt] = useState('');
@@ -165,10 +181,10 @@ export function App() {
     return (batch?.items || [])
       .filter((item) => {
         const searchable = [item.screen, item.prompt].filter(Boolean).join(' ').toLowerCase();
-        return matchesItemStatus(item, itemStatus) && (!search || searchable.includes(search));
+        return matchesItemStatus(item, itemStatus) && matchesReviewStatus(item, reviewStatus) && (!search || searchable.includes(search));
       })
       .sort((left, right) => itemSortPriority(left.status) - itemSortPriority(right.status));
-  }, [batch?.items, itemSearch, itemStatus]);
+  }, [batch?.items, itemSearch, itemStatus, reviewStatus]);
   const reviewTarget = useMemo(() => findReviewTarget(batch, preview), [batch, preview]);
 
   useEffect(() => {
@@ -331,6 +347,25 @@ export function App() {
     try {
       setBatch(await postBatchAction(path, body));
       await refreshBatch();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+      setOperationLabel('');
+    }
+  }
+
+  async function updateReviewStatus(itemId, versionId, reviewStatus) {
+    if (!batch?.id) return;
+    setBusy(true);
+    setOperationLabel('Updating review...');
+    try {
+      setBatch(
+        await postBatchAction(`/api/batches/${batch.id}/items/${itemId}/review-version`, {
+          versionId,
+          reviewStatus
+        })
+      );
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -726,6 +761,19 @@ export function App() {
                   <option value="canceled">canceled</option>
                 </select>
               </label>
+              <label>
+                Review status
+                <select
+                  aria-label="Review status"
+                  value={reviewStatus}
+                  onChange={(event) => setReviewStatus(event.target.value)}
+                >
+                  <option value="all">All</option>
+                  <option value="pending">pending</option>
+                  <option value="approved">approved</option>
+                  <option value="rejected">rejected</option>
+                </select>
+              </label>
             </div>
 
             <div className="review-layout">
@@ -753,6 +801,11 @@ export function App() {
                           </div>
                           <span className={`status status-${item.status}`}>{item.status}</span>
                         </div>
+                        {version ? (
+                          <span className={`review-badge review-${version.reviewStatus || 'pending'}`}>
+                            {reviewLabel(version.reviewStatus)}
+                          </span>
+                        ) : null}
                         <div className="item-body">
                           <div className="prompt-box">
                             <p className="prompt-preview">{item.prompt}</p>
@@ -867,6 +920,9 @@ export function App() {
                     <img src={preview.src} alt={preview.title} />
                   </div>
                   <div className="review-meta">
+                    <span className={`review-badge review-${reviewTarget.version.reviewStatus || 'pending'}`}>
+                      {reviewLabel(reviewTarget.version.reviewStatus)}
+                    </span>
                     <p>{reviewTarget.item.prompt}</p>
                     <div className="attempt-summary">
                       <span>Attempts: {reviewTarget.item.attempts || 0}</span>
@@ -877,6 +933,26 @@ export function App() {
                         </>
                       ) : null}
                     </div>
+                  </div>
+                  <div className="button-row review-actions">
+                    <button
+                      onClick={() => updateReviewStatus(reviewTarget.item.id, reviewTarget.version.id, 'approved')}
+                      disabled={busy || reviewTarget.version.reviewStatus === 'approved'}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => updateReviewStatus(reviewTarget.item.id, reviewTarget.version.id, 'rejected')}
+                      disabled={busy || reviewTarget.version.reviewStatus === 'rejected'}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => updateReviewStatus(reviewTarget.item.id, reviewTarget.version.id, 'pending')}
+                      disabled={busy || !reviewTarget.version.reviewStatus || reviewTarget.version.reviewStatus === 'pending'}
+                    >
+                      Reset
+                    </button>
                   </div>
                   <div className="version-row review-versions">
                     {(reviewTarget.item.versions || []).map((candidate) => (
