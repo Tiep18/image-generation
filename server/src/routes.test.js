@@ -165,7 +165,7 @@ describe('routes', () => {
     expect(response.headers['content-disposition']).toContain(`${created.body.id}.zip`);
   });
 
-  it('downloads only approved image versions when requested', async () => {
+  it('validates approved zip downloads when selected done items are not approved', async () => {
     const { app } = await createTestApp();
 
     const created = await request(app)
@@ -185,14 +185,29 @@ describe('routes', () => {
 
     await waitForBatchStatus(app, created.body.id);
 
+    const initial = await request(app)
+      .get(`/api/batches/${created.body.id}/zip`)
+      .query({ reviewStatus: 'approved' })
+      .expect(200);
+    expect(initial.headers['content-type']).toContain('application/zip');
+
+    await request(app)
+      .post(`/api/batches/${created.body.id}/items/item-1/regenerate`)
+      .send({ prompt: 'Create another home screen' })
+      .expect(200);
+    await waitForBatchStatus(app, created.body.id);
+
     await request(app)
       .get(`/api/batches/${created.body.id}/zip`)
       .query({ reviewStatus: 'approved' })
-      .expect(400);
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toContain('not approved');
+      });
 
     await request(app)
       .post(`/api/batches/${created.body.id}/items/item-1/review-version`)
-      .send({ versionId: 'v1', reviewStatus: 'approved' })
+      .send({ versionId: 'v2', reviewStatus: 'approved' })
       .expect(200);
 
     const response = await request(app)

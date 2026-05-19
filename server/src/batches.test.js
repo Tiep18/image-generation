@@ -57,6 +57,7 @@ describe('batch service', () => {
     expect(saved.status).toBe('done');
     expect(saved.items.every((item) => item.status === 'done')).toBe(true);
     expect(saved.items[0].versions[0].filename).toBe('one.png');
+    expect(saved.items[0].versions[0].reviewStatus).toBe('approved');
     expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({ negativePrompt: 'no text artifacts' }));
     await expect(readFile(path.join(root, batch.id, 'one.png'))).resolves.toEqual(Buffer.from([1, 2, 3]));
   });
@@ -117,6 +118,7 @@ describe('batch service', () => {
 
     expect(saved.items[0].prompt).toBe('updated prompt');
     expect(saved.items[0].versions.map((version) => version.filename)).toEqual(['one.png', 'one-v2.png']);
+    expect(saved.items[0].versions.map((version) => version.reviewStatus)).toEqual(['approved', 'pending']);
     expect(saved.items[0].selectedVersionId).toBe('v2');
   });
 

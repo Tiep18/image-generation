@@ -8,13 +8,13 @@ function buildEffectivePrompt(settings, prompt) {
     .join('\n\n');
 }
 
-function nextVersion(item) {
+function nextVersion(item, mode) {
   const number = item.versions.length + 1;
   return {
     id: `v${number}`,
     filename: number === 1 ? `${item.safeName}.png` : `${item.safeName}-v${number}.png`,
     createdAt: new Date().toISOString(),
-    reviewStatus: 'pending'
+    reviewStatus: mode === 'regenerate' ? 'pending' : 'approved'
   };
 }
 
@@ -108,7 +108,7 @@ export function createBatchService({ store, routerClient }) {
         await withBatchLock(batchId, async () => {
           batch = await store.getBatch(batchId);
           item = batch.items.find((candidate) => candidate.id === itemId);
-          const version = nextVersion(item);
+          const version = nextVersion(item, mode);
           await writeFile(path.join(store.outputRoot, batch.id, version.filename), image);
           item.versions.push(version);
           item.selectedVersionId = version.id;

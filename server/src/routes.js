@@ -16,6 +16,16 @@ const defaultSettings = {
   negativePrompt: ''
 };
 
+function findUnapprovedSelectedItems(batch) {
+  return batch.items.filter((item) => {
+    if (item.status !== 'done') {
+      return false;
+    }
+    const version = item.versions.find((candidate) => candidate.id === item.selectedVersionId);
+    return !version || (version.reviewStatus || 'pending') !== 'approved';
+  });
+}
+
 export function createRoutes({ store, batchService, outputRoot }) {
   const router = express.Router();
 
@@ -175,6 +185,16 @@ export function createRoutes({ store, batchService, outputRoot }) {
     try {
       const batch = await store.getBatch(req.params.batchId);
       const reviewStatus = typeof req.query.reviewStatus === 'string' ? req.query.reviewStatus : '';
+      if (reviewStatus === 'approved') {
+        const unapproved = findUnapprovedSelectedItems(batch);
+        if (unapproved.length > 0) {
+          res.status(400).json({
+            error: `Cannot export approved ZIP: ${unapproved.length} selected item(s) are not approved.`,
+            items: unapproved.map((item) => item.screen)
+          });
+          return;
+        }
+      }
       const { stream, selectedCount } = createBatchZip({ batch, outputRoot, reviewStatus });
       if (selectedCount === 0) {
         const scope = reviewStatus ? `${reviewStatus} images` : 'selected successful images';
