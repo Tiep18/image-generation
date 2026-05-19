@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.jsx';
@@ -497,5 +497,20 @@ describe('App', () => {
     expect(await screen.findByText('Attempts: 2')).toBeTruthy();
     expect(screen.getByText('Last duration: 1m 1s')).toBeTruthy();
     expect(screen.getByText('Last result: done')).toBeTruthy();
+  });
+
+  it('shows a persistent review panel when selecting a generated image', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /home preview/i }));
+
+    const panel = await screen.findByRole('region', { name: /review panel/i });
+    expect(panel).toBeTruthy();
+    expect(within(panel).getByRole('heading', { name: 'home / v1' })).toBeTruthy();
+    expect(within(panel).getByText(/Create a home screen with a very long prompt/i)).toBeTruthy();
+    expect(within(panel).getByText('Status: done')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: /image preview/i })).toBeNull();
   });
 });

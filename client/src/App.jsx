@@ -94,6 +94,16 @@ function latestAttempt(item) {
   return history.length > 0 ? history[history.length - 1] : null;
 }
 
+function findReviewTarget(batch, preview) {
+  if (!batch || !preview) {
+    return null;
+  }
+
+  const item = batch.items.find((candidate) => candidate.id === preview.itemId);
+  const version = item?.versions?.find((candidate) => candidate.id === preview.versionId);
+  return item && version ? { item, version } : null;
+}
+
 function matchesItemStatus(item, status) {
   if (status === 'all') {
     return true;
@@ -159,6 +169,7 @@ export function App() {
       })
       .sort((left, right) => itemSortPriority(left.status) - itemSortPriority(right.status));
   }, [batch?.items, itemSearch, itemStatus]);
+  const reviewTarget = useMemo(() => findReviewTarget(batch, preview), [batch, preview]);
 
   useEffect(() => {
     window.localStorage.setItem(settingsStorageKey, JSON.stringify(settingsForStorage(settings)));
@@ -227,6 +238,7 @@ export function App() {
     setSelectedRetryIds(new Set());
     setEditingRegenerateId('');
     setRegeneratePrompt('');
+    setPreview(null);
   }, [batch?.id]);
 
   function updateSetting(name, value) {
@@ -716,136 +728,176 @@ export function App() {
               </label>
             </div>
 
-            <div className="item-grid">
-              {filteredItems.map((item) => {
-                const version = selectedVersion(item);
-                return (
-                  <article className="item-card" key={item.id} aria-label={`screen item ${item.screen}`}>
-                    <div className="item-header">
-                      <div className="item-title-block">
-                        <h3 className="item-title">{item.screen}</h3>
-                        {item.status === 'failed' ? (
-                          <label className="retry-select">
-                            <input
-                              type="checkbox"
-                              aria-label={`Select ${item.screen} for retry`}
-                              checked={selectedRetryIds.has(item.id)}
-                              onChange={() => toggleRetrySelection(item.id)}
-                            />
-                            Retry select
-                          </label>
-                        ) : null}
-                      </div>
-                      <span className={`status status-${item.status}`}>{item.status}</span>
-                    </div>
-                    <div className="item-body">
-                      <div className="prompt-box">
-                        <p className="prompt-preview">{item.prompt}</p>
-                      </div>
-                      <div className="attempt-summary">
-                        <span>Attempts: {item.attempts || 0}</span>
-                        {latestAttempt(item) ? (
-                          <>
-                            <span>Last duration: {formatDuration(latestAttempt(item).durationMs)}</span>
-                            <span>Last result: {latestAttempt(item).status}</span>
-                          </>
-                        ) : null}
-                      </div>
-                      <div className="thumb">
-                        {version ? (
-                          <button
-                            className="thumb-button"
-                            onClick={() =>
-                              setPreview({
-                                title: `${item.screen} / ${version.id}`,
-                                src: getOutputUrl(batch.id, version.filename)
-                              })
-                            }
-                          >
-                            <img src={getOutputUrl(batch.id, version.filename)} alt={`${item.screen} preview`} />
-                          </button>
-                        ) : (
-                          <span className={['queued', 'generating', 'regenerating'].includes(item.status) ? 'thumb-loading' : ''}>
-                            {['queued', 'generating', 'regenerating'].includes(item.status) ? 'Generating...' : item.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {item.lastError ? <p className="item-error">{item.lastError}</p> : null}
-                    <div className="version-row">
-                      {(item.versions || []).map((candidate) => (
-                        <button
-                          key={candidate.id}
-                          className={candidate.id === item.selectedVersionId ? 'selected-version' : ''}
-                          onClick={() =>
-                            runAction(`/api/batches/${batch.id}/items/${item.id}/select-version`, {
-                              versionId: candidate.id
-                            })
-                          }
-                        >
-                          {candidate.id}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="button-row">
-                      <button
-                        onClick={() => runAction(`/api/batches/${batch.id}/items/${item.id}/retry`)}
-                        disabled={busy || item.status !== 'failed'}
-                      >
-                        <RefreshCcw size={16} />
-                        Retry
-                      </button>
-                      <button
-                        onClick={() => startRegenerate(item)}
-                        disabled={busy || item.status !== 'done'}
-                      >
-                        <RotateCcw size={16} />
-                        Regenerate
-                      </button>
-                    </div>
-                    {editingRegenerateId === item.id ? (
-                      <div className="regenerate-editor">
-                        <label>
-                          Regenerate prompt for {item.screen}
-                          <textarea
-                            className="small-textarea"
-                            value={regeneratePrompt}
-                            onChange={(event) => setRegeneratePrompt(event.target.value)}
-                          />
-                        </label>
+            <div className="review-layout">
+              <div>
+                <div className="item-grid">
+                  {filteredItems.map((item) => {
+                    const version = selectedVersion(item);
+                    return (
+                      <article className="item-card" key={item.id} aria-label={`screen item ${item.screen}`}>
+                        <div className="item-header">
+                          <div className="item-title-block">
+                            <h3 className="item-title">{item.screen}</h3>
+                            {item.status === 'failed' ? (
+                              <label className="retry-select">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Select ${item.screen} for retry`}
+                                  checked={selectedRetryIds.has(item.id)}
+                                  onChange={() => toggleRetrySelection(item.id)}
+                                />
+                                Retry select
+                              </label>
+                            ) : null}
+                          </div>
+                          <span className={`status status-${item.status}`}>{item.status}</span>
+                        </div>
+                        <div className="item-body">
+                          <div className="prompt-box">
+                            <p className="prompt-preview">{item.prompt}</p>
+                          </div>
+                          <div className="attempt-summary">
+                            <span>Attempts: {item.attempts || 0}</span>
+                            {latestAttempt(item) ? (
+                              <>
+                                <span>Last duration: {formatDuration(latestAttempt(item).durationMs)}</span>
+                                <span>Last result: {latestAttempt(item).status}</span>
+                              </>
+                            ) : null}
+                          </div>
+                          <div className="thumb">
+                            {version ? (
+                              <button
+                                className="thumb-button"
+                                onClick={() =>
+                                  setPreview({
+                                    itemId: item.id,
+                                    versionId: version.id,
+                                    title: `${item.screen} / ${version.id}`,
+                                    src: getOutputUrl(batch.id, version.filename)
+                                  })
+                                }
+                              >
+                                <img src={getOutputUrl(batch.id, version.filename)} alt={`${item.screen} preview`} />
+                              </button>
+                            ) : (
+                              <span className={['queued', 'generating', 'regenerating'].includes(item.status) ? 'thumb-loading' : ''}>
+                                {['queued', 'generating', 'regenerating'].includes(item.status) ? 'Generating...' : item.status}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {item.lastError ? <p className="item-error">{item.lastError}</p> : null}
+                        <div className="version-row">
+                          {(item.versions || []).map((candidate) => (
+                            <button
+                              key={candidate.id}
+                              className={candidate.id === item.selectedVersionId ? 'selected-version' : ''}
+                              onClick={() =>
+                                runAction(`/api/batches/${batch.id}/items/${item.id}/select-version`, {
+                                  versionId: candidate.id
+                                })
+                              }
+                            >
+                              {candidate.id}
+                            </button>
+                          ))}
+                        </div>
                         <div className="button-row">
-                          <button onClick={() => submitRegenerate(item)} disabled={busy || !regeneratePrompt.trim()}>
-                            Submit regenerate
+                          <button
+                            onClick={() => runAction(`/api/batches/${batch.id}/items/${item.id}/retry`)}
+                            disabled={busy || item.status !== 'failed'}
+                          >
+                            <RefreshCcw size={16} />
+                            Retry
                           </button>
                           <button
-                            onClick={() => {
-                              setEditingRegenerateId('');
-                              setRegeneratePrompt('');
-                            }}
+                            onClick={() => startRegenerate(item)}
+                            disabled={busy || item.status !== 'done'}
                           >
-                            Cancel edit
+                            <RotateCcw size={16} />
+                            Regenerate
                           </button>
                         </div>
-                      </div>
-                    ) : null}
-                  </article>
-                );
-              })}
+                        {editingRegenerateId === item.id ? (
+                          <div className="regenerate-editor">
+                            <label>
+                              Regenerate prompt for {item.screen}
+                              <textarea
+                                className="small-textarea"
+                                value={regeneratePrompt}
+                                onChange={(event) => setRegeneratePrompt(event.target.value)}
+                              />
+                            </label>
+                            <div className="button-row">
+                              <button onClick={() => submitRegenerate(item)} disabled={busy || !regeneratePrompt.trim()}>
+                                Submit regenerate
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingRegenerateId('');
+                                  setRegeneratePrompt('');
+                                }}
+                              >
+                                Cancel edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+                {filteredItems.length === 0 ? <p className="empty-state">No matching items.</p> : null}
+              </div>
+              {reviewTarget ? (
+                <aside className="review-panel" role="region" aria-label="Review panel">
+                  <div className="review-header">
+                    <div>
+                      <h2>{preview.title}</h2>
+                      <p>Status: {reviewTarget.item.status}</p>
+                    </div>
+                    <button className="icon-button" aria-label="Close review panel" onClick={() => setPreview(null)}>
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="review-image-frame">
+                    <img src={preview.src} alt={preview.title} />
+                  </div>
+                  <div className="review-meta">
+                    <p>{reviewTarget.item.prompt}</p>
+                    <div className="attempt-summary">
+                      <span>Attempts: {reviewTarget.item.attempts || 0}</span>
+                      {latestAttempt(reviewTarget.item) ? (
+                        <>
+                          <span>Last duration: {formatDuration(latestAttempt(reviewTarget.item).durationMs)}</span>
+                          <span>Last result: {latestAttempt(reviewTarget.item).status}</span>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="version-row review-versions">
+                    {(reviewTarget.item.versions || []).map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        className={candidate.id === reviewTarget.version.id ? 'selected-version' : ''}
+                        onClick={() =>
+                          setPreview({
+                            itemId: reviewTarget.item.id,
+                            versionId: candidate.id,
+                            title: `${reviewTarget.item.screen} / ${candidate.id}`,
+                            src: getOutputUrl(batch.id, candidate.filename)
+                          })
+                        }
+                      >
+                        {candidate.id}
+                      </button>
+                    ))}
+                  </div>
+                </aside>
+              ) : null}
             </div>
-            {filteredItems.length === 0 ? <p className="empty-state">No matching items.</p> : null}
           </section>
-        ) : null}
-
-        {preview ? (
-          <div className="modal" role="dialog" aria-label="Image preview">
-            <div className="modal-body">
-              <button className="modal-close" onClick={() => setPreview(null)}>
-                <X size={18} />
-              </button>
-              <h2>{preview.title}</h2>
-              <img src={preview.src} alt={preview.title} />
-            </div>
-          </div>
         ) : null}
       </section>
     </main>
