@@ -492,6 +492,11 @@ textarea {
   line-height: 0;
 }
 
+.thumb-button.selected-thumb {
+  outline: 3px solid #146c94;
+  outline-offset: -3px;
+}
+
 .thumb img {
   display: block;
   width: 100%;

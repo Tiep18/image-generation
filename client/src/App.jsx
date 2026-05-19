@@ -733,6 +733,7 @@ export function App() {
                 <div className="item-grid">
                   {filteredItems.map((item) => {
                     const version = selectedVersion(item);
+                    const isReviewedVersion = reviewTarget?.item.id === item.id && reviewTarget?.version.id === version?.id;
                     return (
                       <article className="item-card" key={item.id} aria-label={`screen item ${item.screen}`}>
                         <div className="item-header">
@@ -768,7 +769,8 @@ export function App() {
                           <div className="thumb">
                             {version ? (
                               <button
-                                className="thumb-button"
+                                className={`thumb-button ${isReviewedVersion ? 'selected-thumb' : ''}`}
+                                aria-pressed={isReviewedVersion}
                                 onClick={() =>
                                   setPreview({
                                     itemId: item.id,

@@ -513,4 +513,17 @@ describe('App', () => {
     expect(within(panel).getByText('Status: done')).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: /image preview/i })).toBeNull();
   });
+
+  it('marks the selected thumbnail while it is open in the review panel', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    const thumbnail = await screen.findByRole('button', { name: /home preview/i });
+    expect(thumbnail.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(thumbnail);
+
+    expect(thumbnail.getAttribute('aria-pressed')).toBe('true');
+  });
 });
