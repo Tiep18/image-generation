@@ -486,10 +486,16 @@ export function App() {
             <p>Generate, preview, retry, regenerate, and export 9Router image batches.</p>
           </div>
           {batch?.id ? (
-            <a className="primary-link" href={getZipUrl(batch.id)}>
-              <Download size={18} />
-              Download ZIP
-            </a>
+            <div className="download-actions">
+              <a className="primary-link" href={getZipUrl(batch.id)}>
+                <Download size={18} />
+                Download ZIP
+              </a>
+              <a className="secondary-link" href={getZipUrl(batch.id, { reviewStatus: 'approved' })}>
+                <Download size={18} />
+                Download approved
+              </a>
+            </div>
           ) : null}
         </header>
         {operationLabel ? <div className="busy-bar" role="status">{operationLabel}</div> : null}

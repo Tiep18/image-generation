@@ -81,8 +81,13 @@ export async function postBatchAction(path, body = {}) {
   return data;
 }
 
-export function getZipUrl(batchId) {
-  return `${API_BASE}/api/batches/${batchId}/zip`;
+export function getZipUrl(batchId, options = {}) {
+  const params = new URLSearchParams();
+  if (options.reviewStatus) {
+    params.set('reviewStatus', options.reviewStatus);
+  }
+  const query = params.toString();
+  return `${API_BASE}/api/batches/${batchId}/zip${query ? `?${query}` : ''}`;
 }
 
 export function getOutputUrl(batchId, filename) {

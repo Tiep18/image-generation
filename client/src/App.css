@@ -169,19 +169,38 @@ textarea {
 }
 
 .primary-button,
-.primary-link {
+.primary-link,
+.secondary-link {
   min-height: 40px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 0 16px;
-  background: #146c94;
-  color: #ffffff;
   text-decoration: none;
 }
 
+.primary-button,
 .primary-link {
+  background: #146c94;
+  color: #ffffff;
+}
+
+.primary-link,
+.secondary-link {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+}
+
+.secondary-link {
+  border-color: #c9d5dd;
+  background: #ffffff;
+  color: #17202a;
+}
+
+.download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 

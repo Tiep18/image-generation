@@ -174,9 +174,11 @@ export function createRoutes({ store, batchService, outputRoot }) {
   router.get('/batches/:batchId/zip', async (req, res, next) => {
     try {
       const batch = await store.getBatch(req.params.batchId);
-      const { stream, selectedCount } = createBatchZip({ batch, outputRoot });
+      const reviewStatus = typeof req.query.reviewStatus === 'string' ? req.query.reviewStatus : '';
+      const { stream, selectedCount } = createBatchZip({ batch, outputRoot, reviewStatus });
       if (selectedCount === 0) {
-        res.status(400).json({ error: 'No selected successful images to export.' });
+        const scope = reviewStatus ? `${reviewStatus} images` : 'selected successful images';
+        res.status(400).json({ error: `No ${scope} to export.` });
         return;
       }
 

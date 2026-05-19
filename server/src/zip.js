@@ -2,7 +2,7 @@ import { PassThrough } from 'node:stream';
 import path from 'node:path';
 import archiver from 'archiver';
 
-export function createBatchZip({ batch, outputRoot }) {
+export function createBatchZip({ batch, outputRoot, reviewStatus = '' }) {
   const archive = archiver('zip', { zlib: { level: 9 } });
   const stream = new PassThrough();
   archive.pipe(stream);
@@ -11,6 +11,9 @@ export function createBatchZip({ batch, outputRoot }) {
   batch.items.forEach((item) => {
     const version = item.versions.find((candidate) => candidate.id === item.selectedVersionId);
     if (!version) {
+      return;
+    }
+    if (reviewStatus && (version.reviewStatus || 'pending') !== reviewStatus) {
       return;
     }
     selectedCount += 1;

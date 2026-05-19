@@ -23,4 +23,12 @@ describe('api base url', () => {
 
     expect(api.getZipUrl('batch-1')).toBe('http://localhost:4000/api/batches/batch-1/zip');
   });
+
+  it('can build a review-filtered zip url', async () => {
+    const api = await loadApi();
+
+    expect(api.getZipUrl('batch-1', { reviewStatus: 'approved' })).toBe(
+      'http://127.0.0.1:3001/api/batches/batch-1/zip?reviewStatus=approved'
+    );
+  });
 });

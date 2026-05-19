@@ -165,6 +165,44 @@ describe('routes', () => {
     expect(response.headers['content-disposition']).toContain(`${created.body.id}.zip`);
   });
 
+  it('downloads only approved image versions when requested', async () => {
+    const { app } = await createTestApp();
+
+    const created = await request(app)
+      .post('/api/batches')
+      .send({
+        settings: {
+          routerUrl: 'http://localhost:20128',
+          apiKey: '',
+          model: 'model-a',
+          concurrency: 1,
+          autoRetries: 0,
+          timeoutMs: 300000
+        },
+        items: [{ screen: 'home', prompt: 'Create a home screen' }]
+      })
+      .expect(201);
+
+    await waitForBatchStatus(app, created.body.id);
+
+    await request(app)
+      .get(`/api/batches/${created.body.id}/zip`)
+      .query({ reviewStatus: 'approved' })
+      .expect(400);
+
+    await request(app)
+      .post(`/api/batches/${created.body.id}/items/item-1/review-version`)
+      .send({ versionId: 'v1', reviewStatus: 'approved' })
+      .expect(200);
+
+    const response = await request(app)
+      .get(`/api/batches/${created.body.id}/zip`)
+      .query({ reviewStatus: 'approved' })
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('application/zip');
+  });
+
   it('updates image version review status', async () => {
     const { app } = await createTestApp();
 
