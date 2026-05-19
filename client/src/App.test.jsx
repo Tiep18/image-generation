@@ -50,6 +50,15 @@ describe('App', () => {
         );
       }
 
+      if (String(url).includes('/api/batches/batch-1/zip?reviewStatus=approved')) {
+        return new Response(
+          JSON.stringify({
+            error: 'Cannot export approved ZIP: 1 selected item(s) are not approved.'
+          }),
+          { status: 400 }
+        );
+      }
+
       if (String(url).endsWith('/api/batches') && options?.method === 'POST') {
         return new Response(
           JSON.stringify({
@@ -582,5 +591,15 @@ describe('App', () => {
 
     expect(screen.queryByRole('button', { name: /home preview/i })).toBeNull();
     expect(screen.getByText('No matching items.')).toBeTruthy();
+  });
+
+  it('shows approved zip validation errors inside the app', async () => {
+    window.localStorage.setItem('lastBatchId', 'batch-1');
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /download approved/i }));
+
+    expect(await screen.findByText('Cannot export approved ZIP: 1 selected item(s) are not approved.')).toBeTruthy();
   });
 });

@@ -3,9 +3,9 @@ import { Copy, Download, Pause, Pencil, Play, RefreshCcw, RotateCcw, Trash2, X }
 import {
   createBatch,
   deleteBatch,
+  downloadZip,
   getBatch,
   getOutputUrl,
-  getZipUrl,
   listBatches,
   listImageModels,
   postBatchAction,
@@ -442,6 +442,29 @@ export function App() {
     }
   }
 
+  async function handleDownloadZip(options = {}) {
+    if (!batch?.id) return;
+    setBusy(true);
+    setOperationLabel('Preparing ZIP...');
+    setMessage('');
+    try {
+      const blob = await downloadZip(batch.id, options);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = options.reviewStatus === 'approved' ? `${batch.id}-approved.zip` : `${batch.id}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+      setOperationLabel('');
+    }
+  }
+
   async function handleEditBatchDetails() {
     if (!batch?.id) return;
     const name = window.prompt('Batch name', batch.name || '');
@@ -487,14 +510,18 @@ export function App() {
           </div>
           {batch?.id ? (
             <div className="download-actions">
-              <a className="primary-link" href={getZipUrl(batch.id)}>
+              <button className="primary-link" onClick={() => handleDownloadZip()} disabled={busy}>
                 <Download size={18} />
                 Download ZIP
-              </a>
-              <a className="secondary-link" href={getZipUrl(batch.id, { reviewStatus: 'approved' })}>
+              </button>
+              <button
+                className="secondary-link"
+                onClick={() => handleDownloadZip({ reviewStatus: 'approved' })}
+                disabled={busy}
+              >
                 <Download size={18} />
                 Download approved
-              </a>
+              </button>
             </div>
           ) : null}
         </header>

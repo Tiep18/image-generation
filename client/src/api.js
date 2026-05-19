@@ -81,6 +81,15 @@ export async function postBatchAction(path, body = {}) {
   return data;
 }
 
+export async function downloadZip(batchId, options = {}) {
+  const response = await fetch(getZipUrl(batchId, options));
+  if (!response.ok) {
+    const data = await readJson(response);
+    throw new Error(data.error || JSON.stringify(data));
+  }
+  return response.blob();
+}
+
 export function getZipUrl(batchId, options = {}) {
   const params = new URLSearchParams();
   if (options.reviewStatus) {
