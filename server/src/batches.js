@@ -12,7 +12,7 @@ function nextVersion(item, mode) {
   const number = item.versions.length + 1;
   return {
     id: `v${number}`,
-    filename: number === 1 ? `${item.safeName}.png` : `${item.safeName}-v${number}.png`,
+    filename: number === 1 ? `${item.safeName}.png` : `${item.safeName}_v${number}.png`,
     createdAt: new Date().toISOString(),
     reviewStatus: mode === 'regenerate' ? 'pending' : 'approved'
   };

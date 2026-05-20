@@ -117,7 +117,7 @@ describe('batch service', () => {
     const saved = await store.getBatch(batch.id);
 
     expect(saved.items[0].prompt).toBe('updated prompt');
-    expect(saved.items[0].versions.map((version) => version.filename)).toEqual(['one.png', 'one-v2.png']);
+    expect(saved.items[0].versions.map((version) => version.filename)).toEqual(['one.png', 'one_v2.png']);
     expect(saved.items[0].versions.map((version) => version.reviewStatus)).toEqual(['approved', 'pending']);
     expect(saved.items[0].selectedVersionId).toBe('v2');
   });

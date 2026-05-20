@@ -29,7 +29,7 @@ For a compact handoff document aimed at future AI/code sessions, read [docs/PROJ
 ]
 ```
 
-Each item needs a non-empty `screen` and `prompt`. The backend sanitizes `screen` into ordered safe filenames such as `001-home.png`.
+Each item needs a non-empty `screen` and `prompt`. The backend sanitizes `screen` into ordered safe filenames such as `001_home.png`.
 
 ## Review Rules
 

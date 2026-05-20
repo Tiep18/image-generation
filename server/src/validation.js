@@ -6,8 +6,8 @@ export function sanitizeScreenName(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 
   return safe || 'screen';
 }
@@ -50,7 +50,7 @@ export function normalizeBatchInput(input) {
     items.push({
       id: `item-${index + 1}`,
       screen: raw.screen.trim(),
-      safeName: `${orderPrefix}-${baseName}`,
+      safeName: `${orderPrefix}_${baseName}`,
       prompt: raw.prompt.trim()
     });
   });

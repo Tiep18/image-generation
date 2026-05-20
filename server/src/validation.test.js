@@ -3,15 +3,15 @@ import { normalizeBatchInput, sanitizeScreenName } from './validation.js';
 
 describe('sanitizeScreenName', () => {
   it('creates safe lowercase filenames', () => {
-    expect(sanitizeScreenName(' Home Screen / Hero ')).toBe('home-screen-hero');
+    expect(sanitizeScreenName(' Home Screen / Hero ')).toBe('home_screen_hero');
   });
 
   it('removes Vietnamese marks before replacing unsafe characters', () => {
-    expect(sanitizeScreenName('Màn hình thanh toán')).toBe('man-hinh-thanh-toan');
+    expect(sanitizeScreenName('Màn hình thanh toán')).toBe('man_hinh_thanh_toan');
   });
 
   it('normalizes Vietnamese d with stroke in filenames', () => {
-    expect(sanitizeScreenName('Đồng hồ đá')).toBe('dong-ho-da');
+    expect(sanitizeScreenName('Đồng hồ đá')).toBe('dong_ho_da');
   });
 
   it('uses screen fallback when the value has no safe characters', () => {
@@ -27,7 +27,7 @@ describe('normalizeBatchInput', () => {
     ]);
 
     expect(result.ok).toBe(true);
-    expect(result.items.map((item) => item.safeName)).toEqual(['001-home', '002-home']);
+    expect(result.items.map((item) => item.safeName)).toEqual(['001_home', '002_home']);
   });
 
   it('prefixes filenames with the screen order from the input array', () => {
@@ -39,9 +39,9 @@ describe('normalizeBatchInput', () => {
 
     expect(result.ok).toBe(true);
     expect(result.items.map((item) => item.safeName)).toEqual([
-      '001-home-screen',
-      '002-checkout',
-      '003-product-detail'
+      '001_home_screen',
+      '002_checkout',
+      '003_product_detail'
     ]);
   });
 

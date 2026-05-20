@@ -131,7 +131,7 @@ Item:
 {
   "id": "item-1",
   "screen": "home",
-  "safeName": "001-home",
+  "safeName": "001_home",
   "prompt": "Create a home screen",
   "effectivePrompt": "computed prompt",
   "status": "queued | generating | regenerating | done | failed | canceled",
@@ -148,7 +148,7 @@ Version:
 ```json
 {
   "id": "v1",
-  "filename": "001-home.png",
+  "filename": "001_home.png",
   "createdAt": "ISO timestamp",
   "reviewStatus": "approved | pending | rejected"
 }
@@ -278,4 +278,4 @@ npm run lint
 - Avoid changing generated outputs in `outputs/` unless the task is about data cleanup.
 - Prefer extending existing route/service/store patterns instead of adding new frameworks.
 - For UI changes, keep the operational dashboard style: dense, practical, and not landing-page-like.
-- For generated filename behavior, preserve ordered safe names such as `001-home.png`.
+- For generated filename behavior, preserve ordered safe names with underscores such as `001_home.png` and regenerated versions such as `001_home_v2.png`.
